@@ -256,8 +256,18 @@ export function NewsFeed({ onStatsUpdate }: Props) {
 
   const truncateContent = (content: string | undefined, maxLen: number = 150) => {
     if (!content) return ''
-    if (content.length <= maxLen) return content
-    return content.substring(0, maxLen) + '...'
+    const text = content
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (text.length <= maxLen) return text
+    return text.substring(0, maxLen) + '...'
   }
 
   const filteredArticles = articles.filter(a => {
