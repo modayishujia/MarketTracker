@@ -80,19 +80,26 @@ async function batchTranslateTitles(titles: string[]): Promise<string[]> {
     const baseUrl = getSetting('llm_baseUrl')
     const apiKey = getSetting('llm_apiKey')
     const model = getSetting('llm_model')
-    if (!baseUrl || !apiKey || !model) return titles
+    if (!baseUrl || !apiKey || !model) {
+      console.log('Translate skipped: LLM not configured')
+      return titles
+    }
 
     const config: LLMConfig = { baseUrl, apiKey, model }
     const numbered = titles.map((t, i) => `${i + 1}. ${t}`).join('\n')
-    const prompt = `Translate the following English article titles to Chinese. Return a JSON object with a single key "translations" containing an array of translated strings in the same order. Keep proper nouns as-is.\n\n${numbered}`
+    const prompt = `Translate the following English article titles to simplified Chinese. Return ONLY a JSON object with a single key "translations" containing an array of translated strings in the same order. Keep proper nouns as-is.\n\n${numbered}`
 
-    const raw = await callLLM(config, 'You are a professional translator. Return only valid JSON.', prompt)
+    console.log(`Translating ${titles.length} titles...`)
+    const raw = await callLLM(config, 'You are a professional translator. Return only valid JSON, no markdown.', prompt)
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed.translations) && parsed.translations.length === titles.length) {
+      console.log(`Translated ${parsed.translations.length} titles OK`)
       return parsed.translations
     }
+    console.log('Translate: response format mismatch, using originals')
     return titles
-  } catch {
+  } catch (err: any) {
+    console.error('Translate failed:', err.message)
     return titles
   }
 }

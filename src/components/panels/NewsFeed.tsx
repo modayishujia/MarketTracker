@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFeedStore } from '../../stores/feedStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 
 interface Article {
   id: number
@@ -30,12 +31,6 @@ interface FetchedContent {
   error?: string
 }
 
-interface SummaryResult {
-  summary?: string
-  keyPoints?: string[]
-  error?: string
-}
-
 interface CustomResult {
   result?: string
   error?: string
@@ -48,6 +43,7 @@ interface Props {
 export function NewsFeed({ onStatsUpdate }: Props) {
   const { t, i18n } = useTranslation()
   const { feeds, loadFeeds, fetchAllActive } = useFeedStore()
+  const { autoAnalyze } = useSettingsStore()
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
   const [fetching, setFetching] = useState(false)
@@ -60,8 +56,6 @@ export function NewsFeed({ onStatsUpdate }: Props) {
   const [tick, setTick] = useState(0)
   const [fetchedContent, setFetchedContent] = useState<FetchedContent | null>(null)
   const [fetchingContent, setFetchingContent] = useState(false)
-  const [summary, setSummary] = useState<SummaryResult | null>(null)
-  const [summarizing, setSummarizing] = useState(false)
   const [customPrompt, setCustomPrompt] = useState('')
   const [customResult, setCustomResult] = useState<CustomResult | null>(null)
   const [customAnalyzing, setCustomAnalyzing] = useState(false)
@@ -116,7 +110,6 @@ export function NewsFeed({ onStatsUpdate }: Props) {
     setSelectedArticle(article)
     setAiAnalysis(null)
     setFetchedContent(null)
-    setSummary(null)
     setCustomResult(null)
     setShowCustomInput(false)
     setFetchError(null)
@@ -141,6 +134,43 @@ export function NewsFeed({ onStatsUpdate }: Props) {
       await (window as any).electronAPI.articles.markRead(article.id)
       setArticles(prev => prev.map(a => a.id === article.id ? { ...a, is_read: 1 } : a))
     }
+
+    // Auto fetch & analyze if AUTO is on and no existing analysis
+    if (autoAnalyze && !analysisCache.has(article.id)) {
+      handleFetchContentFor(article)
+    }
+  }
+
+  const handleFetchContentFor = async (article: Article) => {
+    if (fetchingContent) return
+    setFetchingContent(true)
+    setFetchedContent(null)
+    setAiAnalysis(null)
+    setFetchError(null)
+    try {
+      const result = await (window as any).electronAPI.llm.fetchContent(article.url)
+      if (result.error) {
+        setFetchError(result.error)
+        setFetchingContent(false)
+        return
+      }
+      setFetchedContent(result)
+      if (result.content) {
+        setAnalyzing(true)
+        try {
+          const analysisResult = await (window as any).electronAPI.llm.analyzeArticle(article.id)
+          if (!analysisResult.error) {
+            setAiAnalysis(analysisResult)
+            setAnalysisCache(prev => new Map(prev).set(article.id, analysisResult))
+            onStatsUpdate?.()
+          }
+        } catch {}
+        setAnalyzing(false)
+      }
+    } catch (e: any) {
+      setFetchError(e.message || 'Fetch failed')
+    }
+    setFetchingContent(false)
   }
 
   const handleAnalyze = async () => {
@@ -176,54 +206,7 @@ export function NewsFeed({ onStatsUpdate }: Props) {
 
   const handleFetchContent = async () => {
     if (!selectedArticle || fetchingContent) return
-    setFetchingContent(true)
-    setFetchedContent(null)
-    setSummary(null)
-    setAiAnalysis(null)
-    setFetchError(null)
-    try {
-      const result = await (window as any).electronAPI.llm.fetchContent(selectedArticle.url)
-      if (result.error) {
-        setFetchError(result.error)
-        setFetchingContent(false)
-        return
-      }
-      setFetchedContent(result)
-      if (result.content) {
-        // Auto summarize
-        setSummarizing(true)
-        try {
-          const sumResult = await (window as any).electronAPI.llm.summarize(
-            result.title || selectedArticle.title,
-            result.content
-          )
-          if (sumResult.error) {
-            setFetchError(sumResult.error)
-          } else {
-            setSummary(sumResult)
-          }
-        } catch (e: any) {
-          setFetchError(e.message || 'Summarize failed')
-        }
-        setSummarizing(false)
-        // Auto analyze
-        setAnalyzing(true)
-        try {
-          const analysisResult = await (window as any).electronAPI.llm.analyzeArticle(selectedArticle.id)
-          if (!analysisResult.error) {
-            setAiAnalysis(analysisResult)
-            setAnalysisCache(prev => new Map(prev).set(selectedArticle.id, analysisResult))
-            onStatsUpdate?.()
-          }
-        } catch (e: any) {
-          // analysis failure is non-critical
-        }
-        setAnalyzing(false)
-      }
-    } catch (e: any) {
-      setFetchError(e.message || 'Fetch failed')
-    }
-    setFetchingContent(false)
+    await handleFetchContentFor(selectedArticle)
   }
 
   const handleCustomAnalyze = async () => {
@@ -507,13 +490,13 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                     <div style={{ width: '1px', height: '12px', background: 'var(--border-primary)' }} />
                     <button
                       onClick={handleFetchContent}
-                      disabled={fetchingContent || summarizing || analyzing}
+                      disabled={fetchingContent || analyzing}
                       style={{
                         fontSize: '10px',
-                        color: (fetchingContent || summarizing || analyzing) ? 'var(--accent-green)' : 'var(--text-muted)',
+                        color: (fetchingContent || analyzing) ? 'var(--accent-green)' : 'var(--text-muted)',
                         background: 'none',
                         border: 'none',
-                        cursor: (fetchingContent || summarizing || analyzing) ? 'not-allowed' : 'pointer',
+                        cursor: (fetchingContent || analyzing) ? 'not-allowed' : 'pointer',
                         fontFamily: 'JetBrains Mono, monospace',
                         padding: 0,
                         display: 'flex',
@@ -521,7 +504,7 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                         gap: '3px'
                       }}
                     >
-                      {(fetchingContent || summarizing || analyzing) ? '⏳' : '📄'} {i18n.language === 'zh' ? '抓取分析' : 'Fetch'}
+                      {(fetchingContent || analyzing) ? '⏳' : '📄'} {i18n.language === 'zh' ? '抓取分析' : 'Fetch'}
                     </button>
                     <button
                       onClick={() => setShowCustomInput(!showCustomInput)}
@@ -567,7 +550,7 @@ export function NewsFeed({ onStatsUpdate }: Props) {
             {/* Content */}
             <div className="scroll-area" style={{ flex: 1, padding: '20px 24px' }}>
               {/* Loading states */}
-              {(fetchingContent || summarizing || analyzing) && (
+              {(fetchingContent || analyzing) && (
                 <div style={{
                   marginBottom: '20px',
                   padding: '16px',
@@ -586,66 +569,8 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                     {fetchingContent
                       ? (i18n.language === 'zh' ? '正在抓取全文...' : 'Fetching full content...')
-                      : summarizing
-                        ? (i18n.language === 'zh' ? '正在生成摘要...' : 'Generating summary...')
-                        : (i18n.language === 'zh' ? '正在 AI 分析...' : 'Running AI analysis...')}
+                      : (i18n.language === 'zh' ? '正在 AI 分析...' : 'Running AI analysis...')}
                   </span>
-                </div>
-              )}
-
-              {/* AI Summary + Analysis (auto-generated after fetch) */}
-              {summary && !summary.error && (
-                <div style={{ marginBottom: '20px' }}>
-                  <div style={{
-                    padding: '16px 20px',
-                    background: 'var(--accent-green-dim)',
-                    border: '1px solid rgba(94, 201, 138, 0.15)',
-                    borderRadius: '8px',
-                    marginBottom: '12px'
-                  }}>
-                    <div style={{
-                      fontSize: '10px',
-                      color: 'var(--accent-green)',
-                      fontFamily: 'JetBrains Mono, monospace',
-                      letterSpacing: '0.5px',
-                      marginBottom: '10px',
-                      textTransform: 'uppercase'
-                    }}>
-                      {i18n.language === 'zh' ? '摘要' : 'SUMMARY'}
-                    </div>
-                    <p style={{
-                      fontSize: '14px',
-                      lineHeight: '1.8',
-                      color: 'var(--text-primary)'
-                    }}>
-                      {summary.summary}
-                    </p>
-                  </div>
-                  {summary.keyPoints && summary.keyPoints.length > 0 && (
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '6px',
-                      padding: '14px 16px',
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border-primary)',
-                      borderRadius: '8px'
-                    }}>
-                      {summary.keyPoints.map((point, i) => (
-                        <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                          <span style={{
-                            color: 'var(--accent-green)', fontSize: '10px', fontFamily: 'JetBrains Mono, monospace',
-                            fontWeight: '600', minWidth: '18px', height: '18px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: 'var(--accent-green-dim)', borderRadius: '3px'
-                          }}>
-                            {i + 1}
-                          </span>
-                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>{point}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
 
