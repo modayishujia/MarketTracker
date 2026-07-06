@@ -33,7 +33,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('analyses:getByType', analysisType, limit),
     getCount: (options?: { articleId?: number; analysisType?: string }) =>
       ipcRenderer.invoke('analyses:getCount', options),
-    getPulseData: () => ipcRenderer.invoke('analyses:getPulseData')
+    getPulseData: () => ipcRenderer.invoke('analyses:getPulseData'),
+    getUnanalyzed: (limit?: number) => ipcRenderer.invoke('analyses:getUnanalyzed', limit)
   },
 
   notes: {

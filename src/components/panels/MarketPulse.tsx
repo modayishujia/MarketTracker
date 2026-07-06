@@ -27,9 +27,16 @@ export function MarketPulse() {
   const { t, i18n } = useTranslation()
   const [data, setData] = useState<PulseData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [batchRunning, setBatchRunning] = useState(false)
+  const [batchProgress, setBatchProgress] = useState<{ processed: number; total: number; success: number } | null>(null)
 
   useEffect(() => {
     loadPulse()
+    // Listen for batch analysis events
+    const api = (window as any).electronAPI
+    api.batchAnalysis.status().then((s: any) => {
+      if (s.isAnalyzing) setBatchRunning(true)
+    })
   }, [])
 
   const loadPulse = async () => {
@@ -38,6 +45,39 @@ export function MarketPulse() {
       setData(result)
     } catch {}
     setLoading(false)
+  }
+
+  const handleBatchAnalyze = async () => {
+    setBatchRunning(true)
+    setBatchProgress(null)
+    try {
+      const articles = await (window as any).electronAPI.analyses.getUnanalyzed(200)
+      if (articles.length === 0) {
+        setBatchRunning(false)
+        return
+      }
+      const ids = articles.map((a: any) => a.id)
+      setBatchProgress({ processed: 0, total: ids.length, success: 0 })
+
+      // Process in chunks to show progress
+      const chunkSize = 10
+      let processed = 0
+      let success = 0
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const chunk = ids.slice(i, i + chunkSize)
+        const result = await (window as any).electronAPI.batchAnalysis.start(chunk)
+        if (result.ok) {
+          processed += chunk.length
+          success += result.queued || 0
+          setBatchProgress({ processed, total: ids.length, success })
+        }
+        // Wait for chunk to complete
+        await new Promise(r => setTimeout(r, chunk.length * 600))
+      }
+
+      await loadPulse()
+    } catch {}
+    setBatchRunning(false)
   }
 
   const getSentimentColor = (s: string) => {
@@ -73,9 +113,38 @@ export function MarketPulse() {
         <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
           {i18n.language === 'zh' ? '暂无情绪数据' : 'No sentiment data'}
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-          {i18n.language === 'zh' ? '分析文章后自动生成市场情绪' : 'Analyze articles to generate market pulse'}
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+          {i18n.language === 'zh' ? '批量分析文章以生成市场情绪' : 'Batch analyze articles to generate market pulse'}
         </div>
+        <button
+          onClick={handleBatchAnalyze}
+          disabled={batchRunning}
+          style={{
+            padding: '10px 24px',
+            background: 'linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.05) 100%)',
+            border: '1px solid rgba(212, 168, 83, 0.25)',
+            borderRadius: '6px',
+            color: 'var(--accent-gold)',
+            fontSize: '13px',
+            fontWeight: '500',
+            cursor: batchRunning ? 'not-allowed' : 'pointer',
+            opacity: batchRunning ? 0.7 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          {batchRunning ? (
+            <><div className="thinking-dot" style={{ width: '4px', height: '4px' }} /> {i18n.language === 'zh' ? '分析中...' : 'Analyzing...'}</>
+          ) : (
+            <>🤖 {i18n.language === 'zh' ? '开始批量分析' : 'Start Batch Analyze'}</>
+          )}
+        </button>
+        {batchProgress && (
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+            {batchProgress.processed}/{batchProgress.total}
+          </div>
+        )}
       </div>
     )
   }
@@ -95,12 +164,59 @@ export function MarketPulse() {
           <h2 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
             {t('pulse.title')}
           </h2>
-          <button onClick={loadPulse} style={{
-            padding: '6px 14px', background: 'var(--bg-card)', border: '1px solid var(--border-primary)',
-            borderRadius: '4px', color: 'var(--text-secondary)', fontSize: '11px',
-            fontFamily: 'JetBrains Mono, monospace', cursor: 'pointer'
-          }}>↻ {i18n.language === 'zh' ? '刷新' : 'Refresh'}</button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleBatchAnalyze}
+              disabled={batchRunning}
+              style={{
+                padding: '7px 14px',
+                background: batchRunning ? 'var(--accent-gold-dim)' : 'linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.05) 100%)',
+                border: `1px solid ${batchRunning ? 'var(--border-accent)' : 'rgba(212, 168, 83, 0.25)'}`,
+                borderRadius: '5px',
+                color: batchRunning ? 'var(--accent-gold)' : 'var(--accent-gold)',
+                fontSize: '11px',
+                fontWeight: '500',
+                fontFamily: 'JetBrains Mono, monospace',
+                cursor: batchRunning ? 'not-allowed' : 'pointer',
+                opacity: batchRunning ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              {batchRunning ? (
+                <><div className="thinking-dot" style={{ width: '4px', height: '4px' }} /> {i18n.language === 'zh' ? '分析中...' : 'Analyzing...'}</>
+              ) : (
+                <>🤖 {i18n.language === 'zh' ? '批量分析' : 'Batch Analyze'}</>
+              )}
+            </button>
+            <button onClick={loadPulse} style={{
+              padding: '7px 14px', background: 'var(--bg-card)', border: '1px solid var(--border-primary)',
+              borderRadius: '5px', color: 'var(--text-secondary)', fontSize: '11px',
+              fontFamily: 'JetBrains Mono, monospace', cursor: 'pointer'
+            }}>↻ {i18n.language === 'zh' ? '刷新' : 'Refresh'}</button>
+          </div>
         </div>
+        {/* Batch Progress */}
+        {batchProgress && (
+          <div style={{
+            marginTop: '12px', padding: '10px 14px',
+            background: 'var(--accent-gold-dim)', border: '1px solid var(--border-accent)',
+            borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '12px'
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ height: '4px', background: 'var(--bg-secondary)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', width: `${Math.round(batchProgress.processed / batchProgress.total * 100)}%`,
+                  background: 'var(--accent-gold)', borderRadius: '2px', transition: 'width 0.3s'
+                }} />
+              </div>
+            </div>
+            <span style={{ fontSize: '10px', color: 'var(--accent-gold)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>
+              {batchProgress.processed}/{batchProgress.total}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Top Row: Gauge + Distribution */}
