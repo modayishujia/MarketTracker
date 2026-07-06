@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { NewsFeed } from './panels/NewsFeed'
 import { MarketPulse } from './panels/MarketPulse'
 import { AIBriefing } from './panels/AIBriefing'
 import { OpportunityScanner } from './panels/OpportunityScanner'
 import { SettingsPanel } from './panels/SettingsPanel'
+import { useSettingsStore } from '../stores/settingsStore'
 
-type Panel = 'news' | 'pulse' | 'briefing' | 'opportunities' | 'settings'
+type Panel = 'feed' | 'pulse' | 'brief' | 'alpha' | 'settings'
 
 export function TerminalLayout() {
-  const [activePanel, setActivePanel] = useState<Panel>('news')
-  const [showSettings, setShowSettings] = useState(false)
+  const { t, i18n } = useTranslation()
+  const { language, saveLanguage } = useSettingsStore()
+  const [activePanel, setActivePanel] = useState<Panel>('feed')
   const [currentTime, setCurrentTime] = useState(new Date())
   const [articleCount, setArticleCount] = useState(0)
   const [analysisCount, setAnalysisCount] = useState(0)
@@ -23,6 +26,12 @@ export function TerminalLayout() {
     loadStats()
   }, [])
 
+  useEffect(() => {
+    if (language) {
+      i18n.changeLanguage(language)
+    }
+  }, [language, i18n])
+
   const loadStats = async () => {
     try {
       const articles = await (window as any).electronAPI.articles.getCount()
@@ -32,19 +41,21 @@ export function TerminalLayout() {
     } catch {}
   }
 
+  const toggleLanguage = async () => {
+    const newLang = i18n.language === 'zh' ? 'en' : 'zh'
+    i18n.changeLanguage(newLang)
+    await saveLanguage(newLang)
+  }
+
   const navItems = [
-    { key: 'news' as Panel, icon: '📰', label: 'FEED', desc: 'News Stream' },
-    { key: 'pulse' as Panel, icon: '📊', label: 'PULSE', desc: 'Sentiment' },
-    { key: 'briefing' as Panel, icon: '🤖', label: 'BRIEF', desc: 'AI Report' },
-    { key: 'opportunities' as Panel, icon: '🎯', label: 'ALPHA', desc: 'Signals' },
+    { key: 'feed' as Panel, icon: '📰', label: t('nav.feed') },
+    { key: 'pulse' as Panel, icon: '📊', label: t('nav.pulse') },
+    { key: 'brief' as Panel, icon: '🤖', label: t('nav.brief') },
+    { key: 'alpha' as Panel, icon: '🎯', label: t('nav.alpha') },
   ]
 
   const formatTime = (d: Date) => {
     return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  }
-
-  const formatDate = (d: Date) => {
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   }
 
   return (
@@ -55,10 +66,10 @@ export function TerminalLayout() {
       background: 'var(--bg-primary)',
       overflow: 'hidden'
     }}>
-      {/* Top Ticker Bar */}
+      {/* Top Bar */}
       <div style={{
-        height: '28px',
-        background: 'linear-gradient(90deg, #0a0a14 0%, #0e0e1a 50%, #0a0a14 100%)',
+        height: '36px',
+        background: 'linear-gradient(90deg, #080810 0%, #0c0c18 50%, #080810 100%)',
         borderBottom: '1px solid var(--border-primary)',
         display: 'flex',
         alignItems: 'center',
@@ -67,61 +78,99 @@ export function TerminalLayout() {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {/* Logo + Name */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '18px',
-              height: '18px',
+              width: '22px',
+              height: '22px',
               background: 'linear-gradient(135deg, #d4a853 0%, #b8923a 100%)',
-              borderRadius: '4px',
+              borderRadius: '5px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '10px',
+              fontSize: '12px',
               fontWeight: '700',
-              color: '#000'
+              color: '#000',
+              boxShadow: '0 0 10px rgba(212, 168, 83, 0.3)'
             }}>M</div>
-            <span style={{ 
-              fontSize: '11px', 
-              fontWeight: '600',
-              color: '#d4a853',
-              fontFamily: 'JetBrains Mono, monospace',
-              letterSpacing: '1.5px'
-            }}>
-              MONEYANALYSIS
-            </span>
+            <div>
+              <span style={{ 
+                fontSize: '12px', 
+                fontWeight: '600',
+                color: '#d4a853',
+                fontFamily: 'JetBrains Mono, monospace',
+                letterSpacing: '1px'
+              }}>
+                MONEYANALYSIS
+              </span>
+              <span style={{ 
+                fontSize: '8px', 
+                color: 'var(--text-muted)',
+                marginLeft: '8px',
+                fontFamily: 'JetBrains Mono, monospace'
+              }}>
+                {t('app.subtitle')}
+              </span>
+            </div>
           </div>
 
-          <div style={{ width: '1px', height: '14px', background: 'var(--border-primary)' }} />
+          <div style={{ width: '1px', height: '18px', background: 'var(--border-primary)' }} />
 
-          <span style={{ 
-            fontSize: '9px', 
-            color: 'var(--text-muted)',
-            fontFamily: 'JetBrains Mono, monospace',
-            letterSpacing: '1px'
-          }}>
-            AI-POWERED TERMINAL
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           {/* Stats */}
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <div style={{ display: 'flex', gap: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>ARTICLES</span>
-              <span style={{ fontSize: '11px', color: 'var(--accent-cyan)', fontFamily: 'JetBrains Mono, monospace', fontWeight: '500' }}>
+              <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                {t('feed.articles').toUpperCase()}
+              </span>
+              <span style={{ 
+                fontSize: '12px', 
+                color: 'var(--accent-cyan)', 
+                fontFamily: 'JetBrains Mono, monospace', 
+                fontWeight: '600' 
+              }}>
                 {articleCount}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>ANALYSES</span>
-              <span style={{ fontSize: '11px', color: '#d4a853', fontFamily: 'JetBrains Mono, monospace', fontWeight: '500' }}>
+              <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                AI
+              </span>
+              <span style={{ 
+                fontSize: '12px', 
+                color: '#d4a853', 
+                fontFamily: 'JetBrains Mono, monospace', 
+                fontWeight: '600' 
+              }}>
                 {analysisCount}
               </span>
             </div>
           </div>
+        </div>
 
-          <div style={{ width: '1px', height: '14px', background: 'var(--border-primary)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {/* Language Toggle */}
+          <button
+            onClick={toggleLanguage}
+            style={{
+              padding: '4px 10px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid var(--border-primary)',
+              borderRadius: '3px',
+              color: 'var(--text-secondary)',
+              fontSize: '10px',
+              fontFamily: 'JetBrains Mono, monospace',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span style={{ fontSize: '12px' }}>🌐</span>
+            {i18n.language === 'zh' ? 'EN' : '中'}
+          </button>
+
+          <div style={{ width: '1px', height: '18px', background: 'var(--border-primary)' }} />
 
           {/* Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -129,64 +178,52 @@ export function TerminalLayout() {
             <span style={{ fontSize: '9px', color: 'var(--accent-green)', fontFamily: 'JetBrains Mono, monospace' }}>LIVE</span>
           </div>
 
-          <div style={{ width: '1px', height: '14px', background: 'var(--border-primary)' }} />
+          <div style={{ width: '1px', height: '18px', background: 'var(--border-primary)' }} />
 
           {/* Time */}
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ 
-              fontSize: '12px', 
-              color: 'var(--text-primary)',
-              fontFamily: 'JetBrains Mono, monospace',
-              fontWeight: '500',
-              lineHeight: '1'
-            }}>
-              {formatTime(currentTime)}
-            </div>
-            <div style={{ 
-              fontSize: '9px', 
-              color: 'var(--text-muted)',
-              fontFamily: 'JetBrains Mono, monospace',
-              lineHeight: '1'
-            }}>
-              {formatDate(currentTime)}
-            </div>
-          </div>
+          <span style={{ 
+            fontSize: '12px', 
+            color: 'var(--text-primary)',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontWeight: '500'
+          }}>
+            {formatTime(currentTime)}
+          </span>
         </div>
       </div>
 
       {/* Main Content */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Left Navigation */}
+        {/* Left Nav */}
         <nav style={{
-          width: '64px',
+          width: '72px',
           background: 'linear-gradient(180deg, #08080f 0%, #06060a 100%)',
           borderRight: '1px solid var(--border-primary)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '16px 0',
+          padding: '20px 0',
           flexShrink: 0
         }}>
           {/* Nav Items */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', padding: '0 8px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', padding: '0 10px' }}>
             {navItems.map(item => {
-              const isActive = activePanel === item.key && !showSettings
+              const isActive = activePanel === item.key
               return (
                 <button
                   key={item.key}
-                  onClick={() => { setActivePanel(item.key); setShowSettings(false) }}
-                  title={item.desc}
+                  onClick={() => setActivePanel(item.key)}
                   style={{
-                    width: '48px',
-                    height: '48px',
+                    width: '52px',
+                    height: '52px',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '3px',
+                    gap: '4px',
                     background: isActive ? 'rgba(212, 168, 83, 0.08)' : 'transparent',
                     border: 'none',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     position: 'relative'
@@ -196,20 +233,20 @@ export function TerminalLayout() {
                     <div style={{
                       position: 'absolute',
                       left: 0,
-                      top: '10px',
-                      bottom: '10px',
-                      width: '2px',
+                      top: '12px',
+                      bottom: '12px',
+                      width: '3px',
                       background: '#d4a853',
-                      borderRadius: '1px'
+                      borderRadius: '0 2px 2px 0'
                     }} />
                   )}
-                  <span style={{ fontSize: '18px', opacity: isActive ? 1 : 0.6 }}>{item.icon}</span>
+                  <span style={{ fontSize: '20px', opacity: isActive ? 1 : 0.5 }}>{item.icon}</span>
                   <span style={{ 
-                    fontSize: '8px', 
+                    fontSize: '9px', 
                     fontFamily: 'JetBrains Mono, monospace',
                     color: isActive ? '#d4a853' : 'var(--text-muted)',
-                    letterSpacing: '0.5px',
-                    fontWeight: isActive ? '600' : '400'
+                    fontWeight: isActive ? '600' : '400',
+                    letterSpacing: '0.3px'
                   }}>
                     {item.label}
                   </span>
@@ -220,51 +257,51 @@ export function TerminalLayout() {
 
           {/* Settings */}
           <button
-            onClick={() => setShowSettings(!showSettings)}
+            onClick={() => setActivePanel(activePanel === 'settings' ? 'feed' : 'settings')}
             style={{
-              width: '48px',
-              height: '40px',
+              width: '52px',
+              height: '44px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '2px',
-              background: showSettings ? 'rgba(255,255,255,0.05)' : 'transparent',
+              gap: '3px',
+              background: activePanel === 'settings' ? 'rgba(255,255,255,0.05)' : 'transparent',
               border: 'none',
-              borderRadius: '6px',
+              borderRadius: '8px',
               cursor: 'pointer'
             }}
           >
-            <span style={{ fontSize: '16px', opacity: showSettings ? 1 : 0.6 }}>⚙️</span>
+            <span style={{ fontSize: '18px', opacity: activePanel === 'settings' ? 1 : 0.5 }}>⚙️</span>
             <span style={{ 
-              fontSize: '7px', 
+              fontSize: '8px', 
               color: 'var(--text-muted)',
               fontFamily: 'JetBrains Mono, monospace'
             }}>
-              CONFIG
+              {t('nav.settings')}
             </span>
           </button>
         </nav>
 
         {/* Panel Content */}
         <main style={{ flex: 1, overflow: 'hidden' }}>
-          {showSettings ? (
-            <SettingsPanel onClose={() => setShowSettings(false)} />
+          {activePanel === 'settings' ? (
+            <SettingsPanel onClose={() => setActivePanel('feed')} />
           ) : (
             <>
-              {activePanel === 'news' && <NewsFeed onStatsUpdate={loadStats} />}
+              {activePanel === 'feed' && <NewsFeed onStatsUpdate={loadStats} />}
               {activePanel === 'pulse' && <MarketPulse />}
-              {activePanel === 'briefing' && <AIBriefing />}
-              {activePanel === 'opportunities' && <OpportunityScanner />}
+              {activePanel === 'brief' && <AIBriefing />}
+              {activePanel === 'alpha' && <OpportunityScanner />}
             </>
           )}
         </main>
       </div>
 
-      {/* Bottom Status Bar */}
+      {/* Bottom Bar */}
       <div style={{
-        height: '24px',
-        background: 'rgba(0,0,0,0.4)',
+        height: '22px',
+        background: 'rgba(0,0,0,0.3)',
         borderTop: '1px solid var(--border-primary)',
         display: 'flex',
         alignItems: 'center',
@@ -277,15 +314,15 @@ export function TerminalLayout() {
             v1.0.0
           </span>
           <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-            {articleCount} articles loaded
+            {t('feed.articles')}: {articleCount}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-            Powered by AI
+            AI-Powered
           </span>
           <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-            {currentTime.toLocaleTimeString('en-US', { hour12: false })}
+            {currentTime.toLocaleDateString(i18n.language === 'zh' ? 'zh-CN' : 'en-US')}
           </span>
         </div>
       </div>

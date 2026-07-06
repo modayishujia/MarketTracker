@@ -20,6 +20,7 @@
   --accent-red: #ff5252;
   --accent-blue: #448aff;
   --accent-purple: #b388ff;
+  --accent-pink: #ff4081;
   --glow-gold: 0 0 20px rgba(212, 168, 83, 0.2);
   --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.15);
 }
@@ -37,13 +38,16 @@ body {
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+  text-rendering: optimizeLegibility;
 }
 
 .font-mono {
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 }
 
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -54,29 +58,32 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
 }
 
+/* Glass Effects */
 .glass {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.015);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-primary);
 }
 
 .glass-hover {
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
 }
 
 .glass-hover:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
+/* Status Indicator */
 .status-dot {
   width: 6px;
   height: 6px;
@@ -86,16 +93,27 @@ body {
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.3; }
 }
 
+/* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(-10px); }
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(8px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
@@ -104,20 +122,42 @@ body {
   100% { background-position: 200% 0; }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.2s ease-out forwards;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.animate-slideIn {
-  animation: slideIn 0.3s ease-out forwards;
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(212, 168, 83, 0.2); }
+  50% { box-shadow: 0 0 15px rgba(212, 168, 83, 0.4); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+.animate-fadeInScale {
+  animation: fadeInScale 0.2s ease-out forwards;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.2s ease-out forwards;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.2s ease-out forwards;
 }
 
 .shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.02) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
 
+.glow {
+  animation: glow 2s infinite;
+}
+
+/* Gradient Borders */
 .gradient-border {
   position: relative;
 }
@@ -130,9 +170,21 @@ body {
   right: 0;
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
-  opacity: 0.3;
+  opacity: 0.2;
 }
 
+.gradient-border-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+  opacity: 0.15;
+}
+
+/* Input Styles */
 input, select, textarea {
   font-family: inherit;
 }
@@ -142,13 +194,13 @@ input:focus, select:focus, textarea:focus {
 }
 
 ::selection {
-  background: rgba(212, 168, 83, 0.3);
+  background: rgba(212, 168, 83, 0.25);
   color: white;
 }
 
 /* AI Thinking Animation */
 @keyframes thinking {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
   40% { transform: scale(1); opacity: 1; }
 }
 
@@ -162,15 +214,173 @@ input:focus, select:focus, textarea:focus {
 
 .thinking-dot:nth-child(1) { animation-delay: -0.32s; }
 .thinking-dot:nth-child(2) { animation-delay: -0.16s; }
-
-/* Sentiment Gauge */
-.gauge-fill {
-  transition: width 1s ease-out;
-}
+.thinking-dot:nth-child(3) { animation-delay: 0s; }
 
 /* Scrollbar for specific areas */
 .scroll-area {
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.08) transparent;
+  scrollbar-color: rgba(255,255,255,0.06) transparent;
+}
+
+/* Ticker Animation */
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.ticker-scroll {
+  animation: ticker 30s linear infinite;
+}
+
+/* Hover Effects */
+.hover-lift {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Focus Ring */
+.focus-ring:focus {
+  box-shadow: 0 0 0 2px rgba(212, 168, 83, 0.3);
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, #d4a853 0%, #f0d080 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Divider */
+.divider {
+  width: 1px;
+  height: 100%;
+  background: var(--border-primary);
+}
+
+.divider-h {
+  height: 1px;
+  width: 100%;
+  background: var(--border-primary);
+}
+
+/* Badge */
+.badge {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.badge-green {
+  background: rgba(0, 230, 118, 0.1);
+  color: var(--accent-green);
+  border: 1px solid rgba(0, 230, 118, 0.2);
+}
+
+.badge-red {
+  background: rgba(255, 82, 82, 0.1);
+  color: var(--accent-red);
+  border: 1px solid rgba(255, 82, 82, 0.2);
+}
+
+.badge-gold {
+  background: rgba(212, 168, 83, 0.1);
+  color: var(--accent-gold);
+  border: 1px solid rgba(212, 168, 83, 0.2);
+}
+
+.badge-cyan {
+  background: rgba(0, 212, 255, 0.1);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+/* Panel Header */
+.panel-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-primary);
+  background: rgba(0,0,0,0.2);
+}
+
+.panel-title {
+  font-size: 8px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.panel-heading {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Button Styles */
+.btn-primary {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.05) 100%);
+  border: 1px solid rgba(212, 168, 83, 0.25);
+  border-radius: 4px;
+  color: var(--accent-gold);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, rgba(212, 168, 83, 0.2) 0%, rgba(212, 168, 83, 0.1) 100%);
+  border-color: rgba(212, 168, 83, 0.4);
+}
+
+.btn-secondary {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-ghost {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+}
+
+.btn-ghost.active {
+  background: rgba(212, 168, 83, 0.08);
+  border-color: rgba(212, 168, 83, 0.2);
+  color: var(--accent-gold);
 }
