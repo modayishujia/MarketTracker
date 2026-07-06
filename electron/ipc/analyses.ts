@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { getAnalysesByArticle, getRecentAnalyses, getAnalysesByType, getAnalysisCount } from '../db/analyses'
+import { getAnalysesByArticle, getRecentAnalyses, getAnalysesByType, getAnalysisCount, getPulseData } from '../db/analyses'
 
 export function registerAnalysisHandlers() {
   ipcMain.handle('analyses:getByArticle', (_event, articleId: number) => {
@@ -16,5 +16,9 @@ export function registerAnalysisHandlers() {
 
   ipcMain.handle('analyses:getCount', (_event, options?: { articleId?: number; analysisType?: string }) => {
     return getAnalysisCount(options)
+  })
+
+  ipcMain.handle('analyses:getPulseData', () => {
+    return getPulseData()
   })
 }

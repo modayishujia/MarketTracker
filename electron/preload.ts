@@ -32,7 +32,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getByType: (analysisType: 'insight' | 'sentiment' | 'report', limit?: number) =>
       ipcRenderer.invoke('analyses:getByType', analysisType, limit),
     getCount: (options?: { articleId?: number; analysisType?: string }) =>
-      ipcRenderer.invoke('analyses:getCount', options)
+      ipcRenderer.invoke('analyses:getCount', options),
+    getPulseData: () => ipcRenderer.invoke('analyses:getPulseData')
   },
 
   notes: {
