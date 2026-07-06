@@ -57,6 +57,7 @@ export function getDatabase(): Database.Database {
   db.pragma('foreign_keys = ON')
 
   initializeDatabase(db)
+  migrateDatabase(db)
   seedDefaultFeeds(db)
 
   return db
@@ -77,6 +78,7 @@ function initializeDatabase(db: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       feed_id INTEGER NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
+      title_zh TEXT,
       url TEXT UNIQUE NOT NULL,
       content TEXT,
       published_at DATETIME,
@@ -113,6 +115,15 @@ function initializeDatabase(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_analyses_analysis_type ON analyses(analysis_type);
     CREATE INDEX IF NOT EXISTS idx_notes_article_id ON notes(article_id);
   `)
+}
+
+function migrateDatabase(db: Database.Database): void {
+  const columns = db.prepare("PRAGMA table_info(articles)").all() as { name: string }[]
+  const hasTitleZh = columns.some(c => c.name === 'title_zh')
+  if (!hasTitleZh) {
+    db.exec('ALTER TABLE articles ADD COLUMN title_zh TEXT')
+    console.log('Migrated: added title_zh column to articles')
+  }
 }
 
 function seedDefaultFeeds(db: Database.Database): void {

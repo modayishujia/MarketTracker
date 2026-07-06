@@ -14,7 +14,7 @@ interface ArticleDetailPageProps {
 }
 
 export function ArticleDetailPage({ articleId, onBack }: ArticleDetailPageProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { currentArticle, loading, loadArticle, markRead, toggleFavorite } = useArticleStore()
   const { analyses, loadAnalyses } = useAnalysisStore()
   const [analyzing, setAnalyzing] = useState(false)
@@ -136,7 +136,9 @@ export function ArticleDetailPage({ articleId, onBack }: ArticleDetailPageProps)
 
       <div className="flex-1 flex gap-6 min-h-0">
         <div className="flex-1 overflow-auto">
-          <h1 className="text-2xl font-bold text-white mb-4">{currentArticle.title}</h1>
+          <h1 className="text-2xl font-bold text-white mb-4">
+            {i18n.language === 'zh' && currentArticle.title_zh ? currentArticle.title_zh : currentArticle.title}
+          </h1>
           {currentArticle.published_at && (
             <p className="text-sm text-gray-500 mb-4">
               {new Date(currentArticle.published_at).toLocaleString()}

@@ -5,7 +5,7 @@ import { useSettingsStore } from './stores/settingsStore'
 
 function App() {
   const { i18n } = useTranslation()
-  const { loadSettings, language } = useSettingsStore()
+  const { loadSettings, language, theme } = useSettingsStore()
 
   useEffect(() => {
     loadSettings()
@@ -16,6 +16,10 @@ function App() {
       i18n.changeLanguage(language)
     }
   }, [language, i18n])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
 
   return <TerminalLayout />
 }

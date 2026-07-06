@@ -129,6 +129,86 @@ ${langInst}`
   return JSON.parse(raw) as ReportResult
 }
 
+export async function fetchArticleContent(url: string): Promise<{ title: string; content: string; error?: string }> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+      signal: AbortSignal.timeout(15000)
+    })
+    if (!res.ok) return { title: '', content: '', error: `HTTP ${res.status}` }
+    const html = await res.text()
+
+    // Extract article body: try <article>, then <main>, then full page
+    let body = ''
+    const articleMatch = html.match(/<article[\s\S]*?<\/article>/i)
+    const mainMatch = html.match(/<main[\s\S]*?<\/main>/i)
+    if (articleMatch) body = articleMatch[0]
+    else if (mainMatch) body = mainMatch[0]
+    else body = html
+
+    const cleaned = body
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+      .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+      .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+      .replace(/<form[\s\S]*?<\/form>/gi, '')
+      .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+      .replace(/<svg[\s\S]*?<\/svg>/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/\s*class="[^"]*"/gi, '')
+      .replace(/\s*id="[^"]*"/gi, '')
+      .replace(/\s*style="[^"]*"/gi, '')
+      .replace(/\s*data-[^=]*="[^"]*"/gi, '')
+      .replace(/\s*onclick="[^"]*"/gi, '')
+      .replace(/\s*onload="[^"]*"/gi, '')
+      .replace(/<img([^>]*)>/gi, '<img$1 loading="lazy">')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+    const title = titleMatch ? titleMatch[1].trim() : ''
+    return { title, content: cleaned.substring(0, 30000) }
+  } catch (err: any) {
+    return { title: '', content: '', error: err.message || 'Fetch failed' }
+  }
+}
+
+export async function summarizeContent(
+  config: LLMConfig,
+  title: string,
+  content: string
+): Promise<{ summary: string; keyPoints: string[] }> {
+  const lang = getLanguage()
+  const langInst = getLanguageInstruction(lang)
+
+  const systemPrompt = `You are an expert content summarizer. Read the article and return a JSON object with:
+- summary: a clear 3-5 sentence summary covering the main points (string)
+- keyPoints: array of 3-6 key takeaways (array of strings)
+
+${langInst}`
+
+  const raw = await callLLM(config, systemPrompt, `Title: ${title}\n\nContent:\n${content}`)
+  return JSON.parse(raw)
+}
+
+export async function customAnalysis(
+  config: LLMConfig,
+  title: string,
+  content: string,
+  customPrompt: string
+): Promise<{ result: string }> {
+  const lang = getLanguage()
+  const langInst = getLanguageInstruction(lang)
+
+  const systemPrompt = `You are a professional analyst. Follow the user's analysis instructions precisely. Return a JSON object with a single field "result" containing your analysis as a well-formatted string (use \\n for line breaks).
+
+${langInst}`
+
+  const raw = await callLLM(config, systemPrompt, `Article Title: ${title}\n\nArticle Content:\n${content}\n\n---\nAnalysis Instructions:\n${customPrompt}`)
+  return JSON.parse(raw)
+}
+
 export async function testLLMConnection(config: LLMConfig): Promise<{ ok: boolean; error?: string }> {
   try {
     const lang = getLanguage()

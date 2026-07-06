@@ -1,0 +1,76 @@
+name: Daily Build
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # UTC 02:00 = 北京时间 10:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: win
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Get version
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Build
+        run: npm run build:${{ matrix.platform }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MarketTracker-${{ matrix.platform }}-${{ steps.version.outputs.version }}
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.zip
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}-daily-${{ github.run_number }}
+          name: Daily Build ${{ steps.version.outputs.version }} #${{ github.run_number }}
+          files: artifacts/**/*
+          prerelease: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

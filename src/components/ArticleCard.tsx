@@ -8,7 +8,11 @@ interface ArticleCardProps {
 }
 
 export function ArticleCard({ article, onClick, style }: ArticleCardProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+
+  const displayTitle = i18n.language === 'zh' && article.title_zh
+    ? article.title_zh
+    : article.title
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—'
@@ -46,7 +50,7 @@ export function ArticleCard({ article, onClick, style }: ArticleCardProps) {
             lineHeight: '1.4',
             marginBottom: '8px'
           }}>
-            {article.title}
+            {displayTitle}
           </h3>
           <div className="flex items-center gap-4">
             <span style={{ 

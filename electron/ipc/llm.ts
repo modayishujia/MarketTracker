@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { analyzeArticle, analyzeSentiment, generateReport, testLLMConnection } from '../services/llm'
+import { analyzeArticle, analyzeSentiment, generateReport, testLLMConnection, fetchArticleContent, summarizeContent, customAnalysis } from '../services/llm'
 import { getSetting } from '../db/settings'
 import { getArticleById } from '../db/articles'
 import { addAnalysis } from '../db/analyses'
@@ -109,6 +109,48 @@ export function registerLLMHandlers() {
       return await testLLMConnection(config)
     } catch (err: any) {
       return { ok: false, error: err.message || '连接失败' }
+    }
+  })
+
+  ipcMain.handle('llm:fetchContent', async (_event, url: string) => {
+    try {
+      return await withTimeout(fetchArticleContent(url), 20000)
+    } catch (err: any) {
+      return { title: '', content: '', error: err.message || '抓取失败' }
+    }
+  })
+
+  ipcMain.handle('llm:summarize', async (_event, title: string, content: string) => {
+    try {
+      const config = getLLMConfig()
+      if (!config.baseUrl || !config.apiKey || !config.model) {
+        return { error: '请先配置 AI 模型' }
+      }
+      return await withTimeout(summarizeContent(config, title, content), 60000)
+    } catch (err: any) {
+      return { error: err.message || '摘要生成失败' }
+    }
+  })
+
+  ipcMain.handle('llm:customAnalyze', async (_event, articleId: number, prompt: string) => {
+    try {
+      const config = getLLMConfig()
+      if (!config.baseUrl || !config.apiKey || !config.model) {
+        return { error: '请先配置 AI 模型' }
+      }
+      const article = getArticleById(articleId)
+      if (!article) return { error: '文章未找到' }
+
+      const result = await withTimeout(
+        customAnalysis(config, article.title, article.content || '', prompt),
+        60000
+      )
+      try {
+        addAnalysis(articleId, 'custom', JSON.stringify({ ...result, prompt }), config.model)
+      } catch {}
+      return result
+    } catch (err: any) {
+      return { error: err.message || '自定义分析失败' }
     }
   })
 }

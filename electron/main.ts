@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import { registerFeedHandlers } from './ipc/feeds'
 import { registerArticleHandlers } from './ipc/articles'
@@ -8,6 +8,7 @@ import { registerSettingsHandlers } from './ipc/settings'
 import { registerLLMHandlers } from './ipc/llm'
 import { registerBatchAnalysisHandlers } from './services/batchAnalysis'
 import { startScheduler, restartScheduler, fetchAllFeeds } from './services/scheduler'
+import { setupAutoUpdater } from './services/updater'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -15,6 +16,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    icon: path.join(__dirname, '../../build/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -40,6 +42,7 @@ app.whenReady().then(() => {
 
   createWindow()
   startScheduler()
+  setupAutoUpdater()
 })
 
 ipcMain.on('scheduler:restart', () => {
@@ -48,6 +51,10 @@ ipcMain.on('scheduler:restart', () => {
 
 ipcMain.handle('feeds:syncAll', async () => {
   return fetchAllFeeds()
+})
+
+ipcMain.handle('shell:openExternal', async (_event, url: string) => {
+  await shell.openExternal(url)
 })
 
 app.on('window-all-closed', () => {

@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFeedStore } from '../../stores/feedStore'
 
 interface Article {
   id: number
   title: string
+  title_zh?: string | null
   url: string
   published_at: string | null
   is_read: number
@@ -20,6 +21,23 @@ interface AnalysisResult {
   confidence?: number
   reasoning?: string
   assets?: string[]
+  error?: string
+}
+
+interface FetchedContent {
+  title: string
+  content: string
+  error?: string
+}
+
+interface SummaryResult {
+  summary?: string
+  keyPoints?: string[]
+  error?: string
+}
+
+interface CustomResult {
+  result?: string
   error?: string
 }
 
@@ -39,10 +57,30 @@ export function NewsFeed({ onStatsUpdate }: Props) {
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [analysisCache, setAnalysisCache] = useState<Map<number, AnalysisResult>>(new Map())
+  const [tick, setTick] = useState(0)
+  const [fetchedContent, setFetchedContent] = useState<FetchedContent | null>(null)
+  const [fetchingContent, setFetchingContent] = useState(false)
+  const [summary, setSummary] = useState<SummaryResult | null>(null)
+  const [summarizing, setSummarizing] = useState(false)
+  const [customPrompt, setCustomPrompt] = useState('')
+  const [customResult, setCustomResult] = useState<CustomResult | null>(null)
+  const [customAnalyzing, setCustomAnalyzing] = useState(false)
+  const [showCustomInput, setShowCustomInput] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   useEffect(() => {
     loadFeeds()
     loadArticles()
+    // Load saved custom prompt
+    ;(window as any).electronAPI.settings.get('customPrompt').then((v: string | undefined) => {
+      if (v) setCustomPrompt(v)
+    })
+  }, [])
+
+  // Re-render every 60s to update relative times
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 60000)
+    return () => clearInterval(timer)
   }, [])
 
   useEffect(() => {
@@ -77,6 +115,11 @@ export function NewsFeed({ onStatsUpdate }: Props) {
   const handleSelectArticle = async (article: Article) => {
     setSelectedArticle(article)
     setAiAnalysis(null)
+    setFetchedContent(null)
+    setSummary(null)
+    setCustomResult(null)
+    setShowCustomInput(false)
+    setFetchError(null)
 
     // Check cache first
     if (analysisCache.has(article.id)) {
@@ -131,6 +174,70 @@ export function NewsFeed({ onStatsUpdate }: Props) {
     } catch {}
   }
 
+  const handleFetchContent = async () => {
+    if (!selectedArticle || fetchingContent) return
+    setFetchingContent(true)
+    setFetchedContent(null)
+    setSummary(null)
+    setAiAnalysis(null)
+    setFetchError(null)
+    try {
+      const result = await (window as any).electronAPI.llm.fetchContent(selectedArticle.url)
+      if (result.error) {
+        setFetchError(result.error)
+        setFetchingContent(false)
+        return
+      }
+      setFetchedContent(result)
+      if (result.content) {
+        // Auto summarize
+        setSummarizing(true)
+        try {
+          const sumResult = await (window as any).electronAPI.llm.summarize(
+            result.title || selectedArticle.title,
+            result.content
+          )
+          if (sumResult.error) {
+            setFetchError(sumResult.error)
+          } else {
+            setSummary(sumResult)
+          }
+        } catch (e: any) {
+          setFetchError(e.message || 'Summarize failed')
+        }
+        setSummarizing(false)
+        // Auto analyze
+        setAnalyzing(true)
+        try {
+          const analysisResult = await (window as any).electronAPI.llm.analyzeArticle(selectedArticle.id)
+          if (!analysisResult.error) {
+            setAiAnalysis(analysisResult)
+            setAnalysisCache(prev => new Map(prev).set(selectedArticle.id, analysisResult))
+            onStatsUpdate?.()
+          }
+        } catch (e: any) {
+          // analysis failure is non-critical
+        }
+        setAnalyzing(false)
+      }
+    } catch (e: any) {
+      setFetchError(e.message || 'Fetch failed')
+    }
+    setFetchingContent(false)
+  }
+
+  const handleCustomAnalyze = async () => {
+    if (!selectedArticle || !customPrompt.trim() || customAnalyzing) return
+    setCustomAnalyzing(true)
+    setCustomResult(null)
+    try {
+      const result = await (window as any).electronAPI.llm.customAnalyze(selectedArticle.id, customPrompt)
+      setCustomResult(result)
+      onStatsUpdate?.()
+    } catch {}
+    setCustomAnalyzing(false)
+  }
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return ''
     const diffMs = new Date().getTime() - new Date(dateStr).getTime()
@@ -147,15 +254,15 @@ export function NewsFeed({ onStatsUpdate }: Props) {
   const getTimeColor = (dateStr: string | null) => {
     if (!dateStr) return 'var(--text-muted)'
     const diffMins = Math.floor((new Date().getTime() - new Date(dateStr).getTime()) / 60000)
-    if (diffMins < 30) return '#00e676'
-    if (diffMins < 120) return '#ffd740'
+    if (diffMins < 30) return 'var(--accent-green)'
+    if (diffMins < 120) return 'var(--accent-gold)'
     return 'var(--text-muted)'
   }
 
   const getSentimentColor = (sentiment?: string) => {
-    if (sentiment === 'bullish') return '#00e676'
-    if (sentiment === 'bearish') return '#ff5252'
-    return '#ffd740'
+    if (sentiment === 'bullish') return 'var(--accent-green)'
+    if (sentiment === 'bearish') return 'var(--accent-red)'
+    return 'var(--accent-gold)'
   }
 
   const getSentimentLabel = (sentiment?: string) => {
@@ -177,6 +284,8 @@ export function NewsFeed({ onStatsUpdate }: Props) {
 
   const unreadCount = articles.filter(a => !a.is_read).length
 
+  const feedMap = new Map(feeds.map(f => [f.id, f.title]))
+
   return (
     <div style={{ height: '100%', display: 'flex' }}>
       {/* Article List */}
@@ -194,17 +303,17 @@ export function NewsFeed({ onStatsUpdate }: Props) {
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          background: 'rgba(0,0,0,0.15)'
+          background: 'var(--bg-secondary)'
         }}>
           <button
             onClick={handleFetch}
             disabled={fetching}
             style={{
               padding: '5px 12px',
-              background: fetching ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg, rgba(0, 230, 118, 0.12) 0%, rgba(0, 230, 118, 0.04) 100%)',
-              border: `1px solid ${fetching ? 'var(--border-primary)' : 'rgba(0, 230, 118, 0.25)'}`,
+              background: fetching ? 'var(--bg-card)' : 'var(--accent-green-dim)',
+              border: `1px solid ${fetching ? 'var(--border-primary)' : 'rgba(94,201,138,0.2)'}`,
               borderRadius: '3px',
-              color: fetching ? 'var(--text-muted)' : '#00e676',
+              color: fetching ? 'var(--text-muted)' : 'var(--accent-green)',
               fontSize: '10px',
               fontWeight: '500',
               fontFamily: 'JetBrains Mono, monospace',
@@ -222,10 +331,10 @@ export function NewsFeed({ onStatsUpdate }: Props) {
               onClick={() => setFilter(f)}
               style={{
                 padding: '3px 8px',
-                background: filter === f ? 'rgba(212, 168, 83, 0.08)' : 'transparent',
-                border: `1px solid ${filter === f ? 'rgba(212, 168, 83, 0.2)' : 'transparent'}`,
+                background: filter === f ? 'var(--accent-gold-dim)' : 'transparent',
+                border: `1px solid ${filter === f ? 'var(--border-accent)' : 'transparent'}`,
                 borderRadius: '2px',
-                color: filter === f ? '#d4a853' : 'var(--text-muted)',
+                color: filter === f ? 'var(--accent-gold)' : 'var(--text-muted)',
                 fontSize: '9px',
                 fontFamily: 'JetBrains Mono, monospace',
                 cursor: 'pointer',
@@ -235,7 +344,7 @@ export function NewsFeed({ onStatsUpdate }: Props) {
               }}
             >
               {f === 'unread' && unreadCount > 0 && (
-                <span style={{ background: '#d4a853', color: '#000', padding: '0 3px', borderRadius: '2px', fontSize: '8px', fontWeight: '600' }}>
+                <span style={{ background: 'var(--accent-gold)', color: '#fff', padding: '0 3px', borderRadius: '2px', fontSize: '8px', fontWeight: '600' }}>
                   {unreadCount}
                 </span>
               )}
@@ -277,16 +386,16 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                     padding: '14px 16px',
                     borderBottom: '1px solid var(--border-primary)',
                     cursor: 'pointer',
-                    background: isSelected ? 'rgba(212, 168, 83, 0.06)' : 'transparent',
-                    borderLeft: isSelected ? '3px solid #d4a853' : article.is_read ? '3px solid transparent' : '3px solid rgba(212, 168, 83, 0.4)',
+                    background: isSelected ? 'var(--accent-gold-dim)' : 'transparent',
+                    borderLeft: isSelected ? '3px solid var(--accent-gold)' : article.is_read ? '3px solid transparent' : '3px solid var(--accent-gold-dim)',
                     transition: 'all 0.1s ease',
                     animation: `fadeIn 0.12s ease-out ${Math.min(idx * 0.015, 0.3)}s both`
                   }}
-                  onMouseEnter={e => !isSelected && (e.currentTarget.style.background = 'rgba(255,255,255,0.015)')}
+                  onMouseEnter={e => !isSelected && (e.currentTarget.style.background = 'var(--bg-elevated)')}
                   onMouseLeave={e => !isSelected && (e.currentTarget.style.background = 'transparent')}
                 >
-                  {/* Time */}
-                  <div style={{ marginBottom: '6px' }}>
+                  {/* Time + Source */}
+                  <div style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ 
                       fontSize: '9px', 
                       color: getTimeColor(article.published_at),
@@ -295,6 +404,16 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                     }}>
                       {formatDate(article.published_at)}
                     </span>
+                    {feedMap.get(article.feed_id) && (
+                      <span style={{
+                        fontSize: '9px',
+                        color: 'var(--accent-cyan)',
+                        fontFamily: 'JetBrains Mono, monospace',
+                        opacity: 0.6
+                      }}>
+                        {feedMap.get(article.feed_id)}
+                      </span>
+                    )}
                   </div>
 
                   {/* Title */}
@@ -330,258 +449,450 @@ export function NewsFeed({ onStatsUpdate }: Props) {
       </div>
 
       {/* Detail Panel */}
-      {selectedArticle && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {/* Header */}
-          <div style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--border-primary)',
-            background: 'rgba(0,0,0,0.15)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <h2 style={{ fontSize: '18px', fontWeight: '600', lineHeight: '1.3', marginBottom: '8px' }}>
-                  {selectedArticle.title}
-                </h2>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-                    {formatDate(selectedArticle.published_at)}
-                  </span>
-                  <a 
-                    href={selectedArticle.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{
-                      fontSize: '10px',
-                      color: 'var(--accent-cyan)',
-                      textDecoration: 'none',
-                      fontFamily: 'JetBrains Mono, monospace'
-                    }}
-                  >
-                    {t('feed.openOriginal')} ↗
-                  </a>
+      {selectedArticle && (() => {
+        const displayTitle = i18n.language === 'zh' && selectedArticle.title_zh
+          ? selectedArticle.title_zh
+          : selectedArticle.title
+
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border-primary)',
+              background: 'var(--bg-card)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2 style={{
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    lineHeight: '1.4',
+                    color: 'var(--text-primary)',
+                    marginBottom: '8px',
+                    letterSpacing: '-0.2px'
+                  }}>
+                    {displayTitle}
+                  </h2>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                    {feedMap.get(selectedArticle.feed_id) && (
+                      <span style={{
+                        fontSize: '10px',
+                        color: 'var(--accent-cyan)',
+                        fontFamily: 'JetBrains Mono, monospace',
+                        padding: '2px 7px',
+                        background: 'var(--accent-cyan-dim)',
+                        borderRadius: '3px'
+                      }}>
+                        {feedMap.get(selectedArticle.feed_id)}
+                      </span>
+                    )}
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                      {formatDate(selectedArticle.published_at)}
+                    </span>
+                    <button
+                      onClick={() => (window as any).electronAPI.shell.openExternal(selectedArticle.url)}
+                      style={{
+                        fontSize: '10px',
+                        color: 'var(--accent-cyan)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontFamily: 'JetBrains Mono, monospace',
+                        padding: 0
+                      }}
+                    >
+                      {t('feed.openOriginal')} ↗
+                    </button>
+                    <div style={{ width: '1px', height: '12px', background: 'var(--border-primary)' }} />
+                    <button
+                      onClick={handleFetchContent}
+                      disabled={fetchingContent || summarizing || analyzing}
+                      style={{
+                        fontSize: '10px',
+                        color: (fetchingContent || summarizing || analyzing) ? 'var(--accent-green)' : 'var(--text-muted)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: (fetchingContent || summarizing || analyzing) ? 'not-allowed' : 'pointer',
+                        fontFamily: 'JetBrains Mono, monospace',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px'
+                      }}
+                    >
+                      {(fetchingContent || summarizing || analyzing) ? '⏳' : '📄'} {i18n.language === 'zh' ? '抓取分析' : 'Fetch'}
+                    </button>
+                    <button
+                      onClick={() => setShowCustomInput(!showCustomInput)}
+                      style={{
+                        fontSize: '10px',
+                        color: showCustomInput ? 'var(--accent-purple)' : 'var(--text-muted)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontFamily: 'JetBrains Mono, monospace',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px'
+                      }}
+                    >
+                      ✏️ {i18n.language === 'zh' ? '自定义' : 'Custom'}
+                    </button>
+                  </div>
                 </div>
+                <button
+                  onClick={() => { setSelectedArticle(null); setAiAnalysis(null); setFetchedContent(null); setSummary(null); setCustomResult(null) }}
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-primary)',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                onClick={() => { setSelectedArticle(null); setAiAnalysis(null) }}
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-primary)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', width: '28px', height: '28px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="scroll-area" style={{ flex: 1, padding: '20px' }}>
-            {/* AI Analysis Button */}
-            <div style={{ marginBottom: '20px' }}>
-              <button
-                onClick={handleAnalyze}
-                disabled={analyzing}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: analyzing ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg, rgba(212, 168, 83, 0.12) 0%, rgba(212, 168, 83, 0.04) 100%)',
-                  border: `1px solid ${analyzing ? 'var(--border-primary)' : 'rgba(212, 168, 83, 0.2)'}`,
-                  borderRadius: '6px',
-                  color: analyzing ? 'var(--text-muted)' : '#d4a853',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  cursor: analyzing ? 'not-allowed' : 'pointer',
-                  fontFamily: 'JetBrains Mono, monospace',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                {analyzing ? (
-                  <>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <div className="thinking-dot" style={{ width: '4px', height: '4px' }} />
-                      <div className="thinking-dot" style={{ width: '4px', height: '4px' }} />
-                      <div className="thinking-dot" style={{ width: '4px', height: '4px' }} />
-                    </div>
-                    {t('feed.analyzing')}
-                  </>
-                ) : aiAnalysis ? (
-                  <>🔄 {i18n.language === 'zh' ? '重新分析' : 'Re-analyze'}</>
-                ) : (
-                  <>🤖 {t('feed.aiAnalysis')}</>
-                )}
-              </button>
             </div>
 
-            {/* AI Analysis Result */}
-            {aiAnalysis && !aiAnalysis.error && (
-              <div style={{ marginBottom: '20px' }}>
-                {/* Sentiment Badge */}
+            {/* Content */}
+            <div className="scroll-area" style={{ flex: 1, padding: '20px 24px' }}>
+              {/* Loading states */}
+              {(fetchingContent || summarizing || analyzing) && (
                 <div style={{
+                  marginBottom: '20px',
+                  padding: '16px',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px',
-                  padding: '14px',
-                  background: `${getSentimentColor(aiAnalysis.sentiment)}06`,
-                  border: `1px solid ${getSentimentColor(aiAnalysis.sentiment)}15`,
-                  borderRadius: '8px',
-                  marginBottom: '16px'
+                  gap: '12px'
                 }}>
-                  <div style={{ fontSize: '24px' }}>
-                    {aiAnalysis.sentiment === 'bullish' ? '📈' : aiAnalysis.sentiment === 'bearish' ? '📉' : '➡️'}
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <div className="thinking-dot" />
+                    <div className="thinking-dot" />
+                    <div className="thinking-dot" />
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ 
-                      fontSize: '14px', fontWeight: '700',
-                      color: getSentimentColor(aiAnalysis.sentiment),
-                      fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.5px'
-                    }}>
-                      {getSentimentLabel(aiAnalysis.sentiment)}
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-                      {Math.round((aiAnalysis.confidence || 0) * 100)}% {t('pulse.confidence')}
-                    </div>
-                  </div>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {fetchingContent
+                      ? (i18n.language === 'zh' ? '正在抓取全文...' : 'Fetching full content...')
+                      : summarizing
+                        ? (i18n.language === 'zh' ? '正在生成摘要...' : 'Generating summary...')
+                        : (i18n.language === 'zh' ? '正在 AI 分析...' : 'Running AI analysis...')}
+                  </span>
+                </div>
+              )}
+
+              {/* AI Summary + Analysis (auto-generated after fetch) */}
+              {summary && !summary.error && (
+                <div style={{ marginBottom: '20px' }}>
                   <div style={{
-                    width: '44px', height: '44px', borderRadius: '50%',
-                    background: `conic-gradient(${getSentimentColor(aiAnalysis.sentiment)} ${(aiAnalysis.confidence || 0) * 360}deg, rgba(255,255,255,0.03) 0deg)`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    padding: '16px 20px',
+                    background: 'var(--accent-green-dim)',
+                    border: '1px solid rgba(94, 201, 138, 0.15)',
+                    borderRadius: '8px',
+                    marginBottom: '12px'
                   }}>
                     <div style={{
-                      width: '36px', height: '36px', borderRadius: '50%', background: 'var(--bg-card)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '11px', fontWeight: '600', fontFamily: 'JetBrains Mono, monospace',
-                      color: getSentimentColor(aiAnalysis.sentiment)
+                      fontSize: '10px',
+                      color: 'var(--accent-green)',
+                      fontFamily: 'JetBrains Mono, monospace',
+                      letterSpacing: '0.5px',
+                      marginBottom: '10px',
+                      textTransform: 'uppercase'
                     }}>
-                      {Math.round((aiAnalysis.confidence || 0) * 100)}
+                      {i18n.language === 'zh' ? '摘要' : 'SUMMARY'}
                     </div>
-                  </div>
-                </div>
-
-                {/* Summary */}
-                {aiAnalysis.summary && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', marginBottom: '8px' }}>
-                      {t('feed.summary').toUpperCase()}
-                    </div>
-                    <p style={{ 
-                      fontSize: '13px', lineHeight: '1.7', color: 'var(--text-secondary)',
-                      padding: '12px', background: 'rgba(255,255,255,0.015)', borderRadius: '6px', border: '1px solid var(--border-primary)'
+                    <p style={{
+                      fontSize: '14px',
+                      lineHeight: '1.8',
+                      color: 'var(--text-primary)'
                     }}>
-                      {aiAnalysis.summary}
+                      {summary.summary}
                     </p>
                   </div>
-                )}
-
-                {/* Key Points */}
-                {aiAnalysis.keyPoints && aiAnalysis.keyPoints.length > 0 && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', marginBottom: '8px' }}>
-                      {t('feed.keyInsights').toUpperCase()} ({aiAnalysis.keyPoints.length})
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {aiAnalysis.keyPoints.map((point, i) => (
-                        <div key={i} style={{
-                          display: 'flex', gap: '10px', padding: '10px 12px',
-                          background: 'rgba(255,255,255,0.01)', borderRadius: '4px', border: '1px solid var(--border-primary)'
-                        }}>
-                          <span style={{ color: '#d4a853', fontSize: '10px', fontFamily: 'JetBrains Mono, monospace', fontWeight: '600', minWidth: '18px' }}>
-                            {String(i + 1).padStart(2, '0')}
+                  {summary.keyPoints && summary.keyPoints.length > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      padding: '14px 16px',
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-primary)',
+                      borderRadius: '8px'
+                    }}>
+                      {summary.keyPoints.map((point, i) => (
+                        <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                          <span style={{
+                            color: 'var(--accent-green)', fontSize: '10px', fontFamily: 'JetBrains Mono, monospace',
+                            fontWeight: '600', minWidth: '18px', height: '18px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'var(--accent-green-dim)', borderRadius: '3px'
+                          }}>
+                            {i + 1}
                           </span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>{point}</span>
+                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>{point}</span>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
 
-                {/* Related Assets */}
-                {aiAnalysis.assets && aiAnalysis.assets.length > 0 && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', marginBottom: '8px' }}>
-                      {t('feed.relatedAssets').toUpperCase()}
+              {/* AI Analysis (auto-generated after fetch) */}
+              {aiAnalysis && !aiAnalysis.error && (
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '14px 16px',
+                    background: `${getSentimentColor(aiAnalysis.sentiment)}06`,
+                    border: `1px solid ${getSentimentColor(aiAnalysis.sentiment)}15`,
+                    borderRadius: '8px', marginBottom: '12px'
+                  }}>
+                    <div style={{ fontSize: '24px' }}>
+                      {aiAnalysis.sentiment === 'bullish' ? '📈' : aiAnalysis.sentiment === 'bearish' ? '📉' : '➡️'}
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        fontSize: '14px', fontWeight: '700',
+                        color: getSentimentColor(aiAnalysis.sentiment),
+                        fontFamily: 'JetBrains Mono, monospace'
+                      }}>
+                        {getSentimentLabel(aiAnalysis.sentiment)}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                        {Math.round((aiAnalysis.confidence || 0) * 100)}% {t('pulse.confidence')}
+                      </div>
+                    </div>
+                    <div style={{
+                      width: '44px', height: '44px', borderRadius: '50%',
+                      background: `conic-gradient(${getSentimentColor(aiAnalysis.sentiment)} ${(aiAnalysis.confidence || 0) * 360}deg, var(--border-primary) 0deg)`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <div style={{
+                        width: '36px', height: '36px', borderRadius: '50%', background: 'var(--bg-card)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '12px', fontWeight: '600', fontFamily: 'JetBrains Mono, monospace',
+                        color: getSentimentColor(aiAnalysis.sentiment)
+                      }}>
+                        {Math.round((aiAnalysis.confidence || 0) * 100)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {aiAnalysis.keyPoints && aiAnalysis.keyPoints.length > 0 && (
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', gap: '6px',
+                      padding: '14px 16px',
+                      background: 'var(--bg-card)', border: '1px solid var(--border-primary)',
+                      borderRadius: '8px', marginBottom: '12px'
+                    }}>
+                      {aiAnalysis.keyPoints.map((point, i) => (
+                        <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                          <span style={{
+                            color: 'var(--accent-gold)', fontSize: '10px', fontFamily: 'JetBrains Mono, monospace',
+                            fontWeight: '600', minWidth: '18px', height: '18px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'var(--accent-gold-dim)', borderRadius: '3px'
+                          }}>
+                            {i + 1}
+                          </span>
+                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>{point}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {aiAnalysis.assets && aiAnalysis.assets.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
                       {aiAnalysis.assets.map((asset, i) => (
                         <span key={i} style={{
-                          padding: '5px 12px',
-                          background: 'rgba(0, 212, 255, 0.06)',
-                          border: '1px solid rgba(0, 212, 255, 0.15)',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontFamily: 'JetBrains Mono, monospace',
-                          color: 'var(--accent-cyan)',
-                          fontWeight: '500'
+                          padding: '4px 10px', background: 'var(--accent-cyan-dim)',
+                          border: '1px solid rgba(94, 196, 212, 0.12)', borderRadius: '4px',
+                          fontSize: '11px', fontFamily: 'JetBrains Mono, monospace',
+                          color: 'var(--accent-cyan)', fontWeight: '500'
                         }}>
                           {asset}
                         </span>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Reasoning */}
-                {aiAnalysis.reasoning && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', marginBottom: '8px' }}>
-                      {t('feed.aiReasoning').toUpperCase()}
-                    </div>
-                    <p style={{ 
-                      fontSize: '12px', lineHeight: '1.6', color: 'var(--text-muted)', fontStyle: 'italic',
-                      padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px',
-                      borderLeft: '2px solid rgba(212, 168, 83, 0.3)'
+                  {aiAnalysis.reasoning && (
+                    <div style={{
+                      padding: '14px 16px', background: 'var(--bg-card)',
+                      borderLeft: '3px solid var(--accent-gold-dim)',
+                      borderRadius: '0 6px 6px 0'
                     }}>
-                      "{aiAnalysis.reasoning}"
+                      <div style={{
+                        fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace',
+                        letterSpacing: '0.5px', marginBottom: '6px', textTransform: 'uppercase'
+                      }}>
+                        {t('feed.aiReasoning')}
+                      </div>
+                      <p style={{ fontSize: '13px', lineHeight: '1.7', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                        {aiAnalysis.reasoning}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Custom Prompt Input */}
+              {showCustomInput && (
+                <div style={{
+                  marginBottom: '20px', padding: '16px',
+                  background: 'var(--bg-card)', border: '1px solid rgba(160,128,208,0.15)',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{
+                    fontSize: '10px', color: 'var(--accent-purple)',
+                    fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.5px',
+                    marginBottom: '10px', textTransform: 'uppercase'
+                  }}>
+                    {i18n.language === 'zh' ? '自定义分析指令' : 'CUSTOM PROMPT'}
+                  </div>
+                  <textarea
+                    value={customPrompt}
+                    onChange={e => setCustomPrompt(e.target.value)}
+                    placeholder={i18n.language === 'zh'
+                      ? '例如：分析这篇文章对特斯拉股价的潜在影响'
+                      : 'e.g., Analyze the potential impact on Tesla stock price'}
+                    style={{
+                      width: '100%', minHeight: '72px', padding: '10px 12px',
+                      background: 'var(--bg-primary)', border: '1px solid var(--border-primary)',
+                      borderRadius: '6px', color: 'var(--text-primary)',
+                      fontSize: '13px', lineHeight: '1.6', resize: 'vertical', fontFamily: 'inherit'
+                    }}
+                    onFocus={e => e.target.style.borderColor = 'rgba(160,128,208,0.4)'}
+                    onBlur={e => e.target.style.borderColor = 'var(--border-primary)'}
+                  />
+                  <button
+                    onClick={handleCustomAnalyze}
+                    disabled={!customPrompt.trim() || customAnalyzing}
+                    style={{
+                      marginTop: '8px', padding: '7px 16px',
+                      background: !customPrompt.trim() || customAnalyzing
+                        ? 'rgba(255,255,255,0.03)'
+                        : 'var(--accent-purple-dim, rgba(160,128,208,0.1))',
+                      border: `1px solid ${!customPrompt.trim() || customAnalyzing ? 'var(--border-primary)' : 'rgba(160,128,208,0.2)'}`,
+                      borderRadius: '6px',
+                      color: !customPrompt.trim() || customAnalyzing ? 'var(--text-muted)' : 'var(--accent-purple)',
+                      fontSize: '12px', fontWeight: '500',
+                      cursor: !customPrompt.trim() || customAnalyzing ? 'not-allowed' : 'pointer',
+                      opacity: !customPrompt.trim() || customAnalyzing ? 0.5 : 1
+                    }}
+                  >
+                    {customAnalyzing
+                      ? (i18n.language === 'zh' ? '分析中...' : 'Analyzing...')
+                      : (i18n.language === 'zh' ? '执行分析' : 'Run')}
+                  </button>
+                </div>
+              )}
+
+              {/* Custom Analysis Result */}
+              {customResult && !customResult.error && customResult.result && (
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{
+                    padding: '16px', background: 'var(--bg-card)',
+                    border: '1px solid rgba(160,128,208,0.12)', borderRadius: '8px'
+                  }}>
+                    <div style={{
+                      fontSize: '11px', color: 'var(--text-muted)',
+                      fontFamily: 'JetBrains Mono, monospace', marginBottom: '10px',
+                      padding: '5px 8px', background: 'rgba(160,128,208,0.06)', borderRadius: '4px'
+                    }}>
+                      ✏️ {customPrompt}
+                    </div>
+                    <p style={{
+                      fontSize: '14px', lineHeight: '1.8',
+                      color: 'var(--text-primary)', whiteSpace: 'pre-wrap'
+                    }}>
+                      {customResult.result}
                     </p>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Error */}
-            {aiAnalysis?.error && (
-              <div style={{
-                padding: '14px',
-                background: 'rgba(255, 82, 82, 0.06)',
-                border: '1px solid rgba(255, 82, 82, 0.12)',
-                borderRadius: '6px',
-                marginBottom: '20px'
-              }}>
-                <div style={{ fontSize: '12px', color: '#ff5252', fontWeight: '500' }}>⚠️ {aiAnalysis.error}</div>
-              </div>
-            )}
-
-            {/* Original Content */}
-            {selectedArticle.content && (
-              <div>
-                <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', marginBottom: '10px' }}>
-                  {i18n.language === 'zh' ? '原文内容' : 'ORIGINAL CONTENT'}
                 </div>
+              )}
+
+              {/* Error */}
+              {(fetchError || aiAnalysis?.error || customResult?.error) && (
                 <div style={{
-                  padding: '16px',
-                  background: 'rgba(255,255,255,0.015)',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  lineHeight: '1.8',
-                  color: 'var(--text-secondary)',
-                  maxHeight: '500px',
-                  overflow: 'auto'
+                  padding: '12px 16px', marginBottom: '20px',
+                  background: 'rgba(224, 85, 85, 0.06)',
+                  border: '1px solid rgba(224, 85, 85, 0.12)', borderRadius: '8px'
                 }}>
-                  {selectedArticle.content}
+                  <div style={{ fontSize: '12px', color: 'var(--accent-red)' }}>
+                    ⚠️ {fetchError || aiAnalysis?.error || customResult?.error}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Empty State */}
-            {!aiAnalysis && !selectedArticle.content && (
-              <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)' }}>
-                <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>📄</div>
-                <div style={{ fontSize: '12px' }}>{t('feed.clickToAnalyze')}</div>
-              </div>
-            )}
+              {/* Empty State */}
+              {!aiAnalysis && !fetchedContent && !fetchingContent && (
+                <div>
+                  {selectedArticle.content ? (
+                    <div>
+                      <iframe
+                        sandbox="allow-same-origin"
+                        style={{
+                          width: '100%',
+                          height: '300px',
+                          border: '1px solid var(--border-primary)',
+                          borderRadius: '8px',
+                          background: '#fff',
+                          marginBottom: '12px'
+                        }}
+                        srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+                          * { margin: 0; padding: 0; box-sizing: border-box; }
+                          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.75; color: #1a1a2e; padding: 18px 22px; background: #fff; word-break: break-word; overflow: hidden; }
+                          p { margin: 0 0 0.7em; }
+                          a { color: #208898; text-decoration: none; }
+                          img { max-width: 100%; height: auto; border-radius: 4px; }
+                          strong, b { font-weight: 600; }
+                          blockquote { margin: 0.6em 0; padding: 8px 12px; border-left: 3px solid #d4c090; background: #f8f6f0; border-radius: 0 4px 4px 0; color: #555; }
+                          ul, ol { margin: 0.3em 0 0.6em; padding-left: 1.3em; }
+                          li { margin: 0.2em 0; }
+                        </style></head><body>${selectedArticle.content}</body></html>`}
+                      />
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '8px',
+                        color: 'var(--text-muted)',
+                        fontSize: '11px',
+                        fontFamily: 'JetBrains Mono, monospace'
+                      }}>
+                        {i18n.language === 'zh'
+                          ? '↑ RSS 摘要 · 点击标题栏 📄 抓取全文并 AI 分析'
+                          : '↑ RSS summary · Click 📄 in title bar to fetch full content & analyze'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--text-muted)' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.15 }}>📄</div>
+                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                        {i18n.language === 'zh' ? '点击标题栏 📄 抓取内容并分析' : 'Click 📄 in title bar to fetch and analyze'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {i18n.language === 'zh' ? '或点击 ✏️ 进行自定义分析' : 'or click ✏️ for custom analysis'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

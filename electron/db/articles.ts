@@ -55,13 +55,14 @@ export function addArticle(
   title: string,
   url: string,
   content?: string,
-  publishedAt?: string
+  publishedAt?: string,
+  titleZh?: string
 ): Article | null {
   const db = getDatabase()
   try {
     const result = db.prepare(
-      'INSERT INTO articles (feed_id, title, url, content, published_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(feedId, title, url, content || null, publishedAt || null)
+      'INSERT INTO articles (feed_id, title, title_zh, url, content, published_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(feedId, title, titleZh || null, url, content || null, publishedAt || null)
     return getArticleById(result.lastInsertRowid as number)!
   } catch (error: unknown) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {

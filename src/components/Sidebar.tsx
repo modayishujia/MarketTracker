@@ -54,7 +54,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
               color: 'var(--text-primary)',
               lineHeight: '1.2'
             }}>
-              MoneyAnalysis
+              {t('app.title')}
             </h1>
             <div style={{ 
               fontSize: '10px', 

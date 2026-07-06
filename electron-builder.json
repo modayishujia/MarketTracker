@@ -1,6 +1,13 @@
 {
-  "appId": "com.moneyanalysis.app",
-  "productName": "Financial RSS Analyzer",
+  "appId": "com.markettracker.app",
+  "productName": "MarketTracker",
+  "icon": "build/icon.png",
+  "publish": {
+    "provider": "github",
+    "owner": "modayishujia",
+    "repo": "MarketTracker",
+    "releaseType": "prerelease"
+  },
   "directories": {
     "output": "release"
   },

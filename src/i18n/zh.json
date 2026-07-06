@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "MoneyAnalysis",
+    "title": "市场跟踪大师",
     "subtitle": "AI 驱动的投资终端"
   },
   "nav": {
@@ -89,6 +89,11 @@
   },
   "settings": {
     "title": "设置",
+    "configLabel": "配置",
+    "tabAI": "AI 模型",
+    "tabFeeds": "订阅源",
+    "tabPrompt": "分析指令",
+    "tabGeneral": "通用",
     "aiModel": "AI 模型",
     "apiBaseUrl": "API 地址",
     "apiKey": "API 密钥",
@@ -98,6 +103,7 @@
     "connectionSuccess": "连接成功",
     "connectionFailed": "连接失败",
     "feeds": "订阅源",
+    "feedsConfigured": "个订阅源已配置",
     "addFeed": "添加订阅源",
     "feedUrl": "RSS 地址",
     "feedType": "类型",
@@ -106,11 +112,17 @@
     "fetchInterval": "获取间隔（分钟）",
     "autoAnalyze": "自动分析新文章",
     "language": "语言",
+    "theme": "主题",
+    "dark": "深色",
+    "light": "浅色",
     "chinese": "中文",
     "english": "English",
     "noFeeds": "暂无订阅源",
     "delete": "删除",
-    "fetching": "获取中..."
+    "fetching": "获取中...",
+    "customPromptTitle": "自定义分析指令",
+    "customPromptDesc": "设置自定义的分析指令，在详情页点击「自定义」时使用。可指导 AI 按照你的需求分析文章。",
+    "customPromptPlaceholder": "例如：分析这篇文章对相关股票的短期和长期影响，给出具体的交易建议"
   },
   "common": {
     "loading": "加载中...",

@@ -11,6 +11,7 @@ export interface Article {
   id: number
   feed_id: number
   title: string
+  title_zh: string | null
   url: string
   content: string | null
   published_at: string | null

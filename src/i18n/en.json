@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "MoneyAnalysis",
+    "title": "MarketTracker",
     "subtitle": "AI-Powered Investment Terminal"
   },
   "nav": {
@@ -89,6 +89,11 @@
   },
   "settings": {
     "title": "Settings",
+    "configLabel": "Configuration",
+    "tabAI": "AI Model",
+    "tabFeeds": "Feeds",
+    "tabPrompt": "Prompt",
+    "tabGeneral": "General",
     "aiModel": "AI Model",
     "apiBaseUrl": "API Base URL",
     "apiKey": "API Key",
@@ -98,6 +103,7 @@
     "connectionSuccess": "Connected",
     "connectionFailed": "Connection failed",
     "feeds": "Feeds",
+    "feedsConfigured": "feeds configured",
     "addFeed": "Add Feed",
     "feedUrl": "RSS URL",
     "feedType": "Type",
@@ -106,11 +112,17 @@
     "fetchInterval": "Fetch Interval (min)",
     "autoAnalyze": "Auto-analyze new articles",
     "language": "Language",
+    "theme": "Theme",
+    "dark": "Dark",
+    "light": "Light",
     "chinese": "中文",
     "english": "English",
     "noFeeds": "No feeds configured",
     "delete": "Delete",
-    "fetching": "Fetching..."
+    "fetching": "Fetching...",
+    "customPromptTitle": "Custom Analysis Prompt",
+    "customPromptDesc": "Set a custom prompt used when clicking 'Custom' in article detail. Guides AI to analyze articles according to your needs.",
+    "customPromptPlaceholder": "e.g., Analyze the short-term and long-term impact on related stocks, give specific trading advice"
   },
   "common": {
     "loading": "Loading...",

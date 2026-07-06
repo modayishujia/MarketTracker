@@ -6,12 +6,14 @@ interface SettingsStore {
   fetchInterval: number
   autoAnalyze: boolean
   language: string
+  theme: 'dark' | 'light'
   loading: boolean
   loadSettings: () => Promise<void>
   saveLLMConfig: (config: LLMConfig) => Promise<void>
   saveFetchInterval: (interval: number) => Promise<void>
   saveAutoAnalyze: (auto: boolean) => Promise<void>
   saveLanguage: (lang: string) => Promise<void>
+  saveTheme: (theme: 'dark' | 'light') => Promise<void>
   testConnection: () => Promise<{ ok: boolean; error?: string }>
 }
 
@@ -20,24 +22,27 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   fetchInterval: 30,
   autoAnalyze: false,
   language: 'zh',
+  theme: 'dark',
   loading: false,
   loadSettings: async () => {
     set({ loading: true })
     try {
       const api = (window as any).electronAPI.settings
-      const [baseUrl, apiKey, model, interval, auto, lang] = await Promise.all([
+      const [baseUrl, apiKey, model, interval, auto, lang, theme] = await Promise.all([
         api.get('llm_baseUrl'),
         api.get('llm_apiKey'),
         api.get('llm_model'),
         api.get('fetchInterval'),
         api.get('autoAnalyze'),
-        api.get('language')
+        api.get('language'),
+        api.get('theme')
       ])
       set({
         llmConfig: { baseUrl: baseUrl || '', apiKey: apiKey || '', model: model || '' },
         fetchInterval: parseInt(interval) || 30,
         autoAnalyze: auto === 'true',
         language: lang || 'zh',
+        theme: theme === 'light' ? 'light' : 'dark',
         loading: false
       })
     } catch (error) {
@@ -62,6 +67,11 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   saveLanguage: async (lang) => {
     await (window as any).electronAPI.settings.set('language', lang)
     set({ language: lang })
+  },
+  saveTheme: async (theme) => {
+    await (window as any).electronAPI.settings.set('theme', theme)
+    document.documentElement.setAttribute('data-theme', theme)
+    set({ theme })
   },
   testConnection: async () => {
     try {

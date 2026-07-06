@@ -56,12 +56,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('llm:analyzeSentiment', articleId),
     generateReport: (articles: { title: string; content: string }[]) =>
       ipcRenderer.invoke('llm:generateReport', articles),
-    testConnection: () => ipcRenderer.invoke('llm:testConnection')
+    testConnection: () => ipcRenderer.invoke('llm:testConnection'),
+    fetchContent: (url: string) => ipcRenderer.invoke('llm:fetchContent', url),
+    summarize: (title: string, content: string) => ipcRenderer.invoke('llm:summarize', title, content),
+    customAnalyze: (articleId: number, prompt: string) => ipcRenderer.invoke('llm:customAnalyze', articleId, prompt)
   },
 
   batchAnalysis: {
     start: (articleIds: number[]) => ipcRenderer.invoke('analysis:startBatch', articleIds),
     status: () => ipcRenderer.invoke('analysis:status')
+  },
+
+  shell: {
+    openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url)
+  },
+
+  update: {
+    check: () => ipcRenderer.invoke('update:check'),
+    download: () => ipcRenderer.invoke('update:download'),
+    install: () => ipcRenderer.invoke('update:install'),
+    version: () => ipcRenderer.invoke('update:version'),
+    onChecking: (cb: () => void) => ipcRenderer.on('update:checking', () => cb()),
+    onAvailable: (cb: (info: any) => void) => ipcRenderer.on('update:available', (_e, info) => cb(info)),
+    onProgress: (cb: (progress: any) => void) => ipcRenderer.on('update:progress', (_e, p) => cb(p)),
+    onDownloaded: (cb: (info: any) => void) => ipcRenderer.on('update:downloaded', (_e, info) => cb(info)),
+    onError: (cb: (err: any) => void) => ipcRenderer.on('update:error', (_e, err) => cb(err))
   },
 
   scheduler: {

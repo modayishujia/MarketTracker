@@ -11,7 +11,7 @@ type Panel = 'feed' | 'pulse' | 'brief' | 'alpha' | 'settings'
 
 export function TerminalLayout() {
   const { t, i18n } = useTranslation()
-  const { language, saveLanguage } = useSettingsStore()
+  const { language, theme, autoAnalyze, saveLanguage, saveTheme, saveAutoAnalyze } = useSettingsStore()
   const [activePanel, setActivePanel] = useState<Panel>('feed')
   const [currentTime, setCurrentTime] = useState(new Date())
   const [articleCount, setArticleCount] = useState(0)
@@ -41,10 +41,13 @@ export function TerminalLayout() {
     } catch {}
   }
 
-  const toggleLanguage = async () => {
-    const newLang = i18n.language === 'zh' ? 'en' : 'zh'
-    i18n.changeLanguage(newLang)
-    await saveLanguage(newLang)
+  const toggleTheme = async () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    await saveTheme(newTheme)
+  }
+
+  const toggleAuto = async () => {
+    await saveAutoAnalyze(!autoAnalyze)
   }
 
   const navItems = [
@@ -69,7 +72,7 @@ export function TerminalLayout() {
       {/* Top Bar */}
       <div style={{
         height: '36px',
-        background: 'linear-gradient(90deg, #080810 0%, #0c0c18 50%, #080810 100%)',
+        background: 'var(--bg-secondary)',
         borderBottom: '1px solid var(--border-primary)',
         display: 'flex',
         alignItems: 'center',
@@ -83,25 +86,25 @@ export function TerminalLayout() {
             <div style={{
               width: '22px',
               height: '22px',
-              background: 'linear-gradient(135deg, #d4a853 0%, #b8923a 100%)',
+              background: 'linear-gradient(135deg, var(--accent-gold) 0%, #a08030 100%)',
               borderRadius: '5px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '12px',
               fontWeight: '700',
-              color: '#000',
-              boxShadow: '0 0 10px rgba(212, 168, 83, 0.3)'
+              color: '#fff',
+              boxShadow: 'var(--glow-gold)'
             }}>M</div>
             <div>
               <span style={{ 
                 fontSize: '12px', 
                 fontWeight: '600',
-                color: '#d4a853',
+                color: 'var(--accent-gold)',
                 fontFamily: 'JetBrains Mono, monospace',
                 letterSpacing: '1px'
               }}>
-                MONEYANALYSIS
+                {t('app.title').toUpperCase()}
               </span>
               <span style={{ 
                 fontSize: '8px', 
@@ -137,7 +140,7 @@ export function TerminalLayout() {
               </span>
               <span style={{ 
                 fontSize: '12px', 
-                color: '#d4a853', 
+                color: 'var(--accent-gold)', 
                 fontFamily: 'JetBrains Mono, monospace', 
                 fontWeight: '600' 
               }}>
@@ -147,10 +150,10 @@ export function TerminalLayout() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {/* Language Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Theme Toggle */}
           <button
-            onClick={toggleLanguage}
+            onClick={toggleTheme}
             style={{
               padding: '4px 10px',
               background: 'rgba(255,255,255,0.03)',
@@ -166,8 +169,42 @@ export function TerminalLayout() {
               transition: 'all 0.15s ease'
             }}
           >
-            <span style={{ fontSize: '12px' }}>🌐</span>
-            {i18n.language === 'zh' ? 'EN' : '中'}
+            <span style={{ fontSize: '12px' }}>{theme === 'dark' ? '🌙' : '☀️'}</span>
+            {theme === 'dark' ? 'DARK' : 'LIGHT'}
+          </button>
+
+          <div style={{ width: '1px', height: '18px', background: 'var(--border-primary)' }} />
+
+          {/* AUTO Toggle */}
+          <button
+            onClick={toggleAuto}
+            style={{
+              padding: '4px 10px',
+              background: autoAnalyze
+                ? 'var(--accent-green-dim)'
+                : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${autoAnalyze ? 'rgba(94, 201, 138, 0.3)' : 'var(--border-primary)'}`,
+              borderRadius: '3px',
+              color: autoAnalyze ? 'var(--accent-green)' : 'var(--text-muted)',
+              fontSize: '10px',
+              fontFamily: 'JetBrains Mono, monospace',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease',
+              letterSpacing: '0.5px'
+            }}
+          >
+            <div style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              background: autoAnalyze ? 'var(--accent-green)' : 'var(--text-muted)',
+              animation: autoAnalyze ? 'pulse 2s infinite' : 'none'
+            }} />
+            AUTO
           </button>
 
           <div style={{ width: '1px', height: '18px', background: 'var(--border-primary)' }} />
@@ -197,7 +234,7 @@ export function TerminalLayout() {
         {/* Left Nav */}
         <nav style={{
           width: '72px',
-          background: 'linear-gradient(180deg, #08080f 0%, #06060a 100%)',
+          background: 'var(--bg-secondary)',
           borderRight: '1px solid var(--border-primary)',
           display: 'flex',
           flexDirection: 'column',
@@ -221,7 +258,7 @@ export function TerminalLayout() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '4px',
-                    background: isActive ? 'rgba(212, 168, 83, 0.08)' : 'transparent',
+                    background: isActive ? 'var(--accent-gold-dim)' : 'transparent',
                     border: 'none',
                     borderRadius: '8px',
                     cursor: 'pointer',
@@ -236,7 +273,7 @@ export function TerminalLayout() {
                       top: '12px',
                       bottom: '12px',
                       width: '3px',
-                      background: '#d4a853',
+                      background: 'var(--accent-gold)',
                       borderRadius: '0 2px 2px 0'
                     }} />
                   )}
@@ -244,7 +281,7 @@ export function TerminalLayout() {
                   <span style={{ 
                     fontSize: '9px', 
                     fontFamily: 'JetBrains Mono, monospace',
-                    color: isActive ? '#d4a853' : 'var(--text-muted)',
+                    color: isActive ? 'var(--accent-gold)' : 'var(--text-muted)',
                     fontWeight: isActive ? '600' : '400',
                     letterSpacing: '0.3px'
                   }}>
@@ -266,7 +303,7 @@ export function TerminalLayout() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '3px',
-              background: activePanel === 'settings' ? 'rgba(255,255,255,0.05)' : 'transparent',
+              background: activePanel === 'settings' ? 'var(--accent-gold-dim)' : 'transparent',
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer'
@@ -301,7 +338,7 @@ export function TerminalLayout() {
       {/* Bottom Bar */}
       <div style={{
         height: '22px',
-        background: 'rgba(0,0,0,0.3)',
+        background: 'var(--bg-secondary)',
         borderTop: '1px solid var(--border-primary)',
         display: 'flex',
         alignItems: 'center',
