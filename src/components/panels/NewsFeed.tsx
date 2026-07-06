@@ -12,7 +12,11 @@ interface Article {
   feed_id: number
 }
 
-export function NewsFeed() {
+interface Props {
+  onStatsUpdate?: () => void
+}
+
+export function NewsFeed({ onStatsUpdate }: Props) {
   const { t } = useTranslation()
   const { feeds, loadFeeds, fetchAllActive } = useFeedStore()
   const [articles, setArticles] = useState<Article[]>([])
@@ -45,6 +49,7 @@ export function NewsFeed() {
     try {
       await fetchAllActive()
       await loadArticles()
+      onStatsUpdate?.()
     } finally {
       setFetching(false)
     }
