@@ -104,3 +104,24 @@ export function getArticleCount(options: { feedId?: number; isFavorite?: boolean
   const result = db.prepare(sql).get(...params) as { count: number }
   return result.count
 }
+
+export function getArticlesWithoutAnalysis(limit: number = 50): Article[] {
+  const db = getDatabase()
+  return db.prepare(`
+    SELECT a.* FROM articles a
+    LEFT JOIN analyses ON a.id = analyses.article_id
+    WHERE analyses.id IS NULL
+    ORDER BY a.published_at DESC
+    LIMIT ?
+  `).all(limit) as Article[]
+}
+
+export function getNewArticleIds(since: Date): number[] {
+  const db = getDatabase()
+  const rows = db.prepare(`
+    SELECT id FROM articles 
+    WHERE fetched_at >= ? 
+    ORDER BY published_at DESC
+  `).all(since.toISOString()) as { id: number }[]
+  return rows.map(r => r.id)
+}

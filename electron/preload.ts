@@ -12,7 +12,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: number) => ipcRenderer.invoke('feeds:delete', id),
     fetch: (feedId: number, feedUrl: string, sourceType: 'rss' | 'dxtools') =>
       ipcRenderer.invoke('feeds:fetch', feedId, feedUrl, sourceType),
-    fetchActive: () => ipcRenderer.invoke('feeds:fetchActive')
+    fetchActive: () => ipcRenderer.invoke('feeds:fetchActive'),
+    syncAll: () => ipcRenderer.invoke('feeds:syncAll')
   },
 
   articles: {
@@ -49,20 +50,37 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   llm: {
-    analyzeArticle: (title: string, content: string) =>
-      ipcRenderer.invoke('llm:analyzeArticle', title, content),
-    analyzeSentiment: (title: string, content: string) =>
-      ipcRenderer.invoke('llm:analyzeSentiment', title, content),
+    analyzeArticle: (articleId: number) =>
+      ipcRenderer.invoke('llm:analyzeArticle', articleId),
+    analyzeSentiment: (articleId: number) =>
+      ipcRenderer.invoke('llm:analyzeSentiment', articleId),
     generateReport: (articles: { title: string; content: string }[]) =>
       ipcRenderer.invoke('llm:generateReport', articles),
     testConnection: () => ipcRenderer.invoke('llm:testConnection')
+  },
+
+  batchAnalysis: {
+    start: (articleIds: number[]) => ipcRenderer.invoke('analysis:startBatch', articleIds),
+    status: () => ipcRenderer.invoke('analysis:status')
   },
 
   scheduler: {
     restart: () => ipcRenderer.send('scheduler:restart')
   },
 
-  onNewArticles: (callback: (count: number) => void) => {
-    ipcRenderer.on('feeds:newArticles', (_event, count) => callback(count))
+  onFeedsFetched: (callback: (data: { newCount: number }) => void) => {
+    ipcRenderer.on('feeds:fetched', (_event, data) => callback(data))
+  },
+
+  onAnalysisProgress: (callback: (data: { processed: number; total: number; success: number }) => void) => {
+    ipcRenderer.on('analysis:progress', (_event, data) => callback(data))
+  },
+
+  onAnalysisCompleted: (callback: (data: { processed: number; success: number }) => void) => {
+    ipcRenderer.on('analysis:completed', (_event, data) => callback(data))
+  },
+
+  onAnalysisStarted: (callback: (data: { count: number }) => void) => {
+    ipcRenderer.on('analysis:started', (_event, data) => callback(data))
   }
 })

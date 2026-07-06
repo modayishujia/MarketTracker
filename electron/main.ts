@@ -6,7 +6,8 @@ import { registerAnalysisHandlers } from './ipc/analyses'
 import { registerNoteHandlers } from './ipc/notes'
 import { registerSettingsHandlers } from './ipc/settings'
 import { registerLLMHandlers } from './ipc/llm'
-import { startScheduler, restartScheduler } from './services/scheduler'
+import { registerBatchAnalysisHandlers } from './services/batchAnalysis'
+import { startScheduler, restartScheduler, fetchAllFeeds } from './services/scheduler'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -35,6 +36,7 @@ app.whenReady().then(() => {
   registerNoteHandlers()
   registerSettingsHandlers()
   registerLLMHandlers()
+  registerBatchAnalysisHandlers()
 
   createWindow()
   startScheduler()
@@ -42,6 +44,10 @@ app.whenReady().then(() => {
 
 ipcMain.on('scheduler:restart', () => {
   restartScheduler()
+})
+
+ipcMain.handle('feeds:syncAll', async () => {
+  return fetchAllFeeds()
 })
 
 app.on('window-all-closed', () => {
