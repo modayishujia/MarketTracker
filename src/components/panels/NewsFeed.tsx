@@ -36,7 +36,7 @@ export function NewsFeed({ onStatsUpdate }: Props) {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [aiAnalysis, setAiAnalysis] = useState<AnalysisResult | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
-  const [filter, setFilter] = useState<'all' | 'unread' | 'favorites'>('all')
+  const [filter, setFilter] = useState<'all' | 'unread'>('all')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [analysisCache, setAnalysisCache] = useState<Map<number, AnalysisResult>>(new Map())
 
@@ -172,7 +172,6 @@ export function NewsFeed({ onStatsUpdate }: Props) {
 
   const filteredArticles = articles.filter(a => {
     if (filter === 'unread') return !a.is_read
-    if (filter === 'favorites') return a.is_favorite
     return true
   })
 
@@ -217,7 +216,7 @@ export function NewsFeed({ onStatsUpdate }: Props) {
 
           <div style={{ width: '1px', height: '16px', background: 'var(--border-primary)' }} />
 
-          {(['all', 'unread', 'favorites'] as const).map(f => (
+          {(['all', 'unread'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -286,8 +285,8 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                   onMouseEnter={e => !isSelected && (e.currentTarget.style.background = 'rgba(255,255,255,0.015)')}
                   onMouseLeave={e => !isSelected && (e.currentTarget.style.background = 'transparent')}
                 >
-                  {/* Time & Favorite */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  {/* Time */}
+                  <div style={{ marginBottom: '6px' }}>
                     <span style={{ 
                       fontSize: '9px', 
                       color: getTimeColor(article.published_at),
@@ -296,12 +295,6 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                     }}>
                       {formatDate(article.published_at)}
                     </span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleToggleFavorite(article) }}
-                      style={{ background: 'none', border: 'none', color: article.is_favorite ? '#d4a853' : 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', padding: '2px' }}
-                    >
-                      {article.is_favorite ? '★' : '☆'}
-                    </button>
                   </div>
 
                   {/* Title */}
@@ -367,12 +360,6 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                   >
                     {t('feed.openOriginal')} ↗
                   </a>
-                  <button
-                    onClick={() => handleToggleFavorite(selectedArticle)}
-                    style={{ background: 'none', border: 'none', color: selectedArticle.is_favorite ? '#d4a853' : 'var(--text-muted)', cursor: 'pointer', fontSize: '14px' }}
-                  >
-                    {selectedArticle.is_favorite ? '★' : '☆'}
-                  </button>
                 </div>
               </div>
               <button
