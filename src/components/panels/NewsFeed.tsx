@@ -266,6 +266,9 @@ export function NewsFeed({ onStatsUpdate }: Props) {
       .replace(/&#39;/g, "'")
       .replace(/\s+/g, ' ')
       .trim()
+    if (text.length < 15) return ''
+    const skip = /^(点击查看|点击阅读|查看原文|阅读原文|查看详情|点击这里|click\s*(here|to|view|read|for)|read\s*more)/i
+    if (skip.test(text)) return ''
     if (text.length <= maxLen) return text
     return text.substring(0, maxLen) + '...'
   }
