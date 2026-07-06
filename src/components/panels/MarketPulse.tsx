@@ -29,10 +29,11 @@ export function MarketPulse() {
   const [loading, setLoading] = useState(true)
   const [batchRunning, setBatchRunning] = useState(false)
   const [batchProgress, setBatchProgress] = useState<{ processed: number; total: number; success: number } | null>(null)
+  const [scanRunning, setScanRunning] = useState(false)
+  const [scanProgress, setScanProgress] = useState<string>('')
 
   useEffect(() => {
     loadPulse()
-    // Listen for batch analysis events
     const api = (window as any).electronAPI
     api.batchAnalysis.status().then((s: any) => {
       if (s.isAnalyzing) setBatchRunning(true)
@@ -58,8 +59,6 @@ export function MarketPulse() {
       }
       const ids = articles.map((a: any) => a.id)
       setBatchProgress({ processed: 0, total: ids.length, success: 0 })
-
-      // Process in chunks to show progress
       const chunkSize = 10
       let processed = 0
       let success = 0
@@ -71,13 +70,55 @@ export function MarketPulse() {
           success += result.queued || 0
           setBatchProgress({ processed, total: ids.length, success })
         }
-        // Wait for chunk to complete
         await new Promise(r => setTimeout(r, chunk.length * 600))
       }
-
       await loadPulse()
     } catch {}
     setBatchRunning(false)
+  }
+
+  const handleScanRecent = async () => {
+    setScanRunning(true)
+    setScanProgress(i18n.language === 'zh' ? '正在同步信息源...' : 'Syncing feeds...')
+    try {
+      // 1. Fetch all feeds first
+      await (window as any).electronAPI.feeds.syncAll()
+
+      // 2. Get recent articles
+      setScanProgress(i18n.language === 'zh' ? '正在获取最新文章...' : 'Fetching recent articles...')
+      const articles = await (window as any).electronAPI.articles.getAll({ limit: 50 })
+      if (articles.length === 0) {
+        setScanRunning(false)
+        return
+      }
+
+      // 3. Analyze them
+      const ids = articles.map((a: any) => a.id)
+      setScanProgress(i18n.language === 'zh' ? `正在分析 ${ids.length} 篇文章...` : `Analyzing ${ids.length} articles...`)
+      setBatchProgress({ processed: 0, total: ids.length, success: 0 })
+
+      const chunkSize = 10
+      let processed = 0
+      let success = 0
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const chunk = ids.slice(i, i + chunkSize)
+        const result = await (window as any).electronAPI.batchAnalysis.start(chunk)
+        if (result.ok) {
+          processed += chunk.length
+          success += result.queued || 0
+          setBatchProgress({ processed, total: ids.length, success })
+          setScanProgress(i18n.language === 'zh'
+            ? `已分析 ${processed}/${ids.length}`
+            : `Analyzed ${processed}/${ids.length}`)
+        }
+        await new Promise(r => setTimeout(r, chunk.length * 600))
+      }
+
+      setScanProgress(i18n.language === 'zh' ? '正在刷新...' : 'Refreshing...')
+      await loadPulse()
+    } catch {}
+    setScanRunning(false)
+    setScanProgress('')
   }
 
   const getSentimentColor = (s: string) => {
@@ -114,35 +155,61 @@ export function MarketPulse() {
           {i18n.language === 'zh' ? '暂无情绪数据' : 'No sentiment data'}
         </div>
         <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-          {i18n.language === 'zh' ? '批量分析文章以生成市场情绪' : 'Batch analyze articles to generate market pulse'}
+          {i18n.language === 'zh' ? '扫描近期信息源并分析以生成市场情绪' : 'Scan recent feeds and analyze to generate market pulse'}
         </div>
-        <button
-          onClick={handleBatchAnalyze}
-          disabled={batchRunning}
-          style={{
-            padding: '10px 24px',
-            background: 'linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.05) 100%)',
-            border: '1px solid rgba(212, 168, 83, 0.25)',
-            borderRadius: '6px',
-            color: 'var(--accent-gold)',
-            fontSize: '13px',
-            fontWeight: '500',
-            cursor: batchRunning ? 'not-allowed' : 'pointer',
-            opacity: batchRunning ? 0.7 : 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          {batchRunning ? (
-            <><div className="thinking-dot" style={{ width: '4px', height: '4px' }} /> {i18n.language === 'zh' ? '分析中...' : 'Analyzing...'}</>
-          ) : (
-            <>🤖 {i18n.language === 'zh' ? '开始批量分析' : 'Start Batch Analyze'}</>
-          )}
-        </button>
-        {batchProgress && (
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={handleScanRecent}
+            disabled={scanRunning}
+            style={{
+              padding: '10px 24px',
+              background: 'linear-gradient(135deg, rgba(94, 201, 138, 0.15) 0%, rgba(94, 201, 138, 0.05) 100%)',
+              border: '1px solid rgba(94, 201, 138, 0.25)',
+              borderRadius: '6px',
+              color: 'var(--accent-green)',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: scanRunning ? 'not-allowed' : 'pointer',
+              opacity: scanRunning ? 0.7 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            {scanRunning ? (
+              <><div className="thinking-dot" style={{ width: '4px', height: '4px' }} /> {scanProgress || (i18n.language === 'zh' ? '扫描中...' : 'Scanning...')}</>
+            ) : (
+              <>📡 {i18n.language === 'zh' ? '扫描近期' : 'Scan Recent'}</>
+            )}
+          </button>
+          <button
+            onClick={handleBatchAnalyze}
+            disabled={batchRunning}
+            style={{
+              padding: '10px 24px',
+              background: 'linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.05) 100%)',
+              border: '1px solid rgba(212, 168, 83, 0.25)',
+              borderRadius: '6px',
+              color: 'var(--accent-gold)',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: batchRunning ? 'not-allowed' : 'pointer',
+              opacity: batchRunning ? 0.7 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            {batchRunning ? (
+              <><div className="thinking-dot" style={{ width: '4px', height: '4px' }} /> {i18n.language === 'zh' ? '分析中...' : 'Analyzing...'}</>
+            ) : (
+              <>🤖 {i18n.language === 'zh' ? '批量分析' : 'Batch Analyze'}</>
+            )}
+          </button>
+        </div>
+        {(batchProgress || scanProgress) && (
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-            {batchProgress.processed}/{batchProgress.total}
+            {scanProgress || (batchProgress ? `${batchProgress.processed}/${batchProgress.total}` : '')}
           </div>
         )}
       </div>
@@ -166,19 +233,44 @@ export function MarketPulse() {
           </h2>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
+              onClick={handleScanRecent}
+              disabled={scanRunning || batchRunning}
+              style={{
+                padding: '7px 14px',
+                background: scanRunning ? 'var(--accent-green-dim)' : 'linear-gradient(135deg, rgba(94, 201, 138, 0.15) 0%, rgba(94, 201, 138, 0.05) 100%)',
+                border: `1px solid ${scanRunning ? 'rgba(94,201,138,0.3)' : 'rgba(94, 201, 138, 0.25)'}`,
+                borderRadius: '5px',
+                color: scanRunning ? 'var(--accent-green)' : 'var(--accent-green)',
+                fontSize: '11px',
+                fontWeight: '500',
+                fontFamily: 'JetBrains Mono, monospace',
+                cursor: (scanRunning || batchRunning) ? 'not-allowed' : 'pointer',
+                opacity: (scanRunning || batchRunning) ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              {scanRunning ? (
+                <><div className="thinking-dot" style={{ width: '4px', height: '4px' }} /> {scanProgress || (i18n.language === 'zh' ? '扫描中...' : 'Scanning...')}</>
+              ) : (
+                <>📡 {i18n.language === 'zh' ? '扫描近期' : 'Scan Recent'}</>
+              )}
+            </button>
+            <button
               onClick={handleBatchAnalyze}
-              disabled={batchRunning}
+              disabled={batchRunning || scanRunning}
               style={{
                 padding: '7px 14px',
                 background: batchRunning ? 'var(--accent-gold-dim)' : 'linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.05) 100%)',
                 border: `1px solid ${batchRunning ? 'var(--border-accent)' : 'rgba(212, 168, 83, 0.25)'}`,
                 borderRadius: '5px',
-                color: batchRunning ? 'var(--accent-gold)' : 'var(--accent-gold)',
+                color: 'var(--accent-gold)',
                 fontSize: '11px',
                 fontWeight: '500',
                 fontFamily: 'JetBrains Mono, monospace',
-                cursor: batchRunning ? 'not-allowed' : 'pointer',
-                opacity: batchRunning ? 0.7 : 1,
+                cursor: (batchRunning || scanRunning) ? 'not-allowed' : 'pointer',
+                opacity: (batchRunning || scanRunning) ? 0.7 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px'
@@ -190,10 +282,11 @@ export function MarketPulse() {
                 <>🤖 {i18n.language === 'zh' ? '批量分析' : 'Batch Analyze'}</>
               )}
             </button>
-            <button onClick={loadPulse} style={{
+            <button onClick={loadPulse} disabled={scanRunning || batchRunning} style={{
               padding: '7px 14px', background: 'var(--bg-card)', border: '1px solid var(--border-primary)',
               borderRadius: '5px', color: 'var(--text-secondary)', fontSize: '11px',
-              fontFamily: 'JetBrains Mono, monospace', cursor: 'pointer'
+              fontFamily: 'JetBrains Mono, monospace', cursor: (scanRunning || batchRunning) ? 'not-allowed' : 'pointer',
+              opacity: (scanRunning || batchRunning) ? 0.5 : 1
             }}>↻ {i18n.language === 'zh' ? '刷新' : 'Refresh'}</button>
           </div>
         </div>
