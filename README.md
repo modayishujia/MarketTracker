@@ -1,79 +1,81 @@
 # MarketTracker
 
-AI 驱动的市场资讯分析终端，基于 Electron + React + Vite 构建。
+An AI-powered market analysis terminal built with Electron, React, and Vite.
 
-## 功能特性
+[中文文档](./README.zh-CN.md)
 
-- **RSS 信息流** — 订阅多个 RSS 源，自动抓取最新资讯
-- **AI 摘要** — 抓取全文后自动生成摘要和要点
-- **AI 分析** — 情绪分析（看涨/看跌/中性）、相关资产、推理过程
-- **自定义分析** — 在设置中配置自定义 prompt，按需分析文章
-- **标题翻译** — 英文标题自动翻译为中文（需配置 LLM）
-- **深色/浅色主题** — 支持两种主题切换
-- **中英文界面** — 支持中文和英文
-- **自动更新** — 检测新版本并一键更新
+## Features
 
-## 下载
+- **RSS Feed** — Subscribe to multiple RSS sources, auto-fetch latest articles
+- **AI Summary** — Auto-generate summaries and key points after fetching full content
+- **AI Analysis** — Sentiment analysis (bullish/bearish/neutral), related assets, reasoning
+- **Custom Analysis** — Configure custom prompts in settings, analyze articles on demand
+- **Title Translation** — Auto-translate English titles to Chinese (requires LLM)
+- **Dark / Light Theme** — Two theme modes
+- **Bilingual UI** — Chinese and English interface
+- **Auto Update** — Check for new versions and update with one click
 
-从 [Releases](https://github.com/modayishujia/MarketTracker/releases) 页面下载最新版本：
+## Download
 
-| 平台 | 格式 |
-|------|------|
+Download the latest version from [Releases](https://github.com/modayishujia/MarketTracker/releases):
+
+| Platform | Format |
+|----------|--------|
 | macOS | `.dmg` |
-| Windows | `.exe` (NSIS 安装包) |
+| Windows | `.exe` (NSIS installer) |
 
-每日自动构建版本（prerelease）也会发布在 Releases 页面。
+Daily automated builds (prerelease) are also published on the Releases page.
 
-## 开发
+## Quick Start
 
 ```bash
-# 安装依赖
+# Install dependencies
 npm install
 
-# 启动开发
+# Start development
 npm run dev
 
-# 构建
+# Build for production
 npm run build
 
-# 构建 macOS 安装包
+# Build macOS installer
 npm run build:mac
 
-# 构建 Windows 安装包
+# Build Windows installer
 npm run build:win
 ```
 
-## 配置
+## Configuration
 
-首次启动后，进入 **设置** 页面配置：
+After first launch, go to **Settings** to configure:
 
-1. **AI 模型** — 填写 OpenAI 兼容的 API 地址、密钥和模型名称
-2. **订阅源** — 默认已预置常用 RSS 源，可自行添加/删除
-3. **通用设置** — 语言、主题、获取间隔、自动分析
+1. **AI Model** — Enter your OpenAI-compatible API base URL, API key, and model name
+2. **Feeds** — Default RSS sources are pre-loaded, you can add or remove feeds
+3. **General** — Language, theme, fetch interval, auto-analyze toggle
 
-## 技术栈
+## Tech Stack
 
-- **前端** — React 19 + TypeScript + Tailwind CSS + Zustand
-- **桌面** — Electron 43 + electron-vite
-- **数据库** — SQLite (better-sqlite3)，本地存储于 `userData` 目录
-- **AI** — OpenAI 兼容 API（支持任何兼容接口）
+- **Frontend** — React 19 + TypeScript + Tailwind CSS + Zustand
+- **Desktop** — Electron 43 + electron-vite
+- **Database** — SQLite (better-sqlite3), stored locally in `userData` directory
+- **AI** — OpenAI-compatible API (works with any compatible endpoint)
 
-## 项目结构
+## Project Structure
 
 ```
 MarketTracker/
-├── electron/              # Electron 主进程
-│   ├── db/                # 数据库操作
-│   ├── ipc/               # IPC 处理器
-│   ├── services/          # 业务服务（RSS、LLM、更新）
-│   ├── main.ts            # 入口
-│   └── preload.ts         # 预加载脚本
-├── src/                   # React 前端
-│   ├── components/        # 组件
-│   ├── stores/            # Zustand 状态管理
-│   ├── i18n/              # 国际化
-│   └── pages/             # 页面
-├── build/                 # 构建资源（图标等）
+├── electron/              # Electron main process
+│   ├── db/                # Database operations
+│   ├── ipc/               # IPC handlers
+│   ├── services/          # Business services (RSS, LLM, updater)
+│   ├── main.ts            # Entry point
+│   └── preload.ts         # Preload script
+├── src/                   # React frontend
+│   ├── components/        # Components
+│   ├── stores/            # Zustand state management
+│   ├── i18n/              # Internationalization
+│   └── pages/             # Pages
+├── build/                 # Build assets (icon etc.)
 └── .github/workflows/     # CI/CD
 ```
 
