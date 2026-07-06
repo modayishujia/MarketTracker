@@ -7,35 +7,137 @@ interface SidebarProps {
 
 export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   const { t } = useTranslation()
+  
   const navItems = [
-    { key: 'feeds', icon: '\u{1F4F0}', label: t('nav.feeds') },
-    { key: 'articles', icon: '\u{1F4C4}', label: t('nav.articles') },
-    { key: 'favorites', icon: '\u2B50', label: t('nav.favorites') },
-    { key: 'analysis', icon: '\u{1F4CA}', label: t('nav.analysis') },
-    { key: 'settings', icon: '\u2699\uFE0F', label: t('nav.settings') }
+    { key: 'feeds', icon: '📡', label: t('nav.feeds') },
+    { key: 'articles', icon: '📰', label: t('nav.articles') },
+    { key: 'favorites', icon: '⭐', label: t('nav.favorites') },
+    { key: 'analysis', icon: '📊', label: t('nav.analysis') },
+    { key: 'settings', icon: '⚙️', label: t('nav.settings') }
   ]
 
   return (
-    <aside className="w-48 bg-gray-800 border-r border-gray-700 flex flex-col">
-      <div className="p-4 border-b border-gray-700">
-        <h1 className="text-lg font-bold text-white">{t('app.title')}</h1>
-      </div>
-      <nav className="flex-1 p-2">
-        {navItems.map(item => (
-          <button
-            key={item.key}
-            onClick={() => onNavigate(item.key)}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md mb-1 transition-colors ${
-              currentPage === item.key
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-300 hover:bg-gray-700'
-            }`}
+    <aside 
+      className="flex flex-col"
+      style={{ 
+        width: '220px',
+        background: 'linear-gradient(180deg, rgba(12, 12, 20, 0.98) 0%, rgba(8, 8, 16, 0.98) 100%)',
+        borderRight: '1px solid var(--border-primary)'
+      }}
+    >
+      {/* Logo Area */}
+      <div 
+        className="p-5"
+        style={{ 
+          borderBottom: '1px solid var(--border-primary)',
+          background: 'linear-gradient(180deg, rgba(212, 168, 83, 0.05) 0%, transparent 100%)'
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <div 
+            style={{
+              width: '32px',
+              height: '32px',
+              background: 'linear-gradient(135deg, #d4a853 0%, #b8923a 100%)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 15px rgba(212, 168, 83, 0.3)'
+            }}
           >
-            <span>{item.icon}</span>
-            <span>{item.label}</span>
-          </button>
-        ))}
+            <span style={{ fontSize: '16px' }}>📈</span>
+          </div>
+          <div>
+            <h1 style={{ 
+              fontSize: '15px', 
+              fontWeight: '600',
+              color: 'var(--text-primary)',
+              lineHeight: '1.2'
+            }}>
+              {t('app.title')}
+            </h1>
+            <div style={{ 
+              fontSize: '10px', 
+              color: 'var(--text-muted)',
+              fontFamily: 'JetBrains Mono, monospace',
+              letterSpacing: '1px',
+              textTransform: 'uppercase',
+              marginTop: '2px'
+            }}>
+              v1.0.0
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 p-3">
+        <div style={{ 
+          fontSize: '10px', 
+          color: 'var(--text-muted)',
+          fontFamily: 'JetBrains Mono, monospace',
+          letterSpacing: '1.5px',
+          textTransform: 'uppercase',
+          padding: '8px 12px',
+          marginBottom: '4px'
+        }}>
+          {t('nav.feeds')}
+        </div>
+        
+        {navItems.map(item => {
+          const isActive = currentPage === item.key
+          return (
+            <button
+              key={item.key}
+              onClick={() => onNavigate(item.key)}
+              className="w-full flex items-center gap-3 rounded-lg mb-1 transition-all duration-200"
+              style={{
+                padding: '10px 12px',
+                background: isActive 
+                  ? 'linear-gradient(90deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.05) 100%)'
+                  : 'transparent',
+                borderLeft: isActive ? '2px solid #d4a853' : '2px solid transparent',
+                color: isActive ? '#d4a853' : 'var(--text-secondary)',
+              }}
+            >
+              <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>
+                {item.icon}
+              </span>
+              <span style={{ 
+                fontSize: '13px', 
+                fontWeight: isActive ? '500' : '400',
+                letterSpacing: '0.3px'
+              }}>
+                {item.label}
+              </span>
+            </button>
+          )
+        })}
       </nav>
+
+      {/* Status Bar */}
+      <div 
+        className="p-4"
+        style={{ 
+          borderTop: '1px solid var(--border-primary)',
+          background: 'rgba(0, 0, 0, 0.2)'
+        }}
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <div className="status-dot" style={{ background: 'var(--accent-green)' }} />
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            {t('common.loading')}
+          </span>
+        </div>
+        <div style={{ 
+          fontSize: '10px', 
+          color: 'var(--text-muted)',
+          fontFamily: 'JetBrains Mono, monospace'
+        }}>
+          {new Date().toLocaleDateString('zh-CN')}
+        </div>
+      </div>
     </aside>
   )
 }

@@ -53,85 +53,230 @@ export function FeedPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-white">{t('feeds.title')}</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={handleFetchAll}
-            disabled={fetchingAll || feeds.length === 0}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {fetchingAll ? t('feeds.fetching') : t('feeds.fetchAll')}
-          </button>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            {showForm ? t('feeds.cancel') : t('feeds.add')}
-          </button>
+    <div style={{ padding: '24px 32px' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ 
+          fontSize: '10px', 
+          color: 'var(--text-muted)',
+          fontFamily: 'JetBrains Mono, monospace',
+          letterSpacing: '2px',
+          textTransform: 'uppercase',
+          marginBottom: '8px'
+        }}>
+          Feed Management
+        </div>
+        <div className="flex items-center justify-between">
+          <h2 style={{ 
+            fontSize: '24px', 
+            fontWeight: '600',
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.5px'
+          }}>
+            {t('feeds.title')}
+          </h2>
+          <div className="flex gap-2">
+            <button
+              onClick={handleFetchAll}
+              disabled={fetchingAll || feeds.length === 0}
+              className="transition-all duration-200"
+              style={{
+                padding: '8px 16px',
+                background: 'linear-gradient(135deg, rgba(0, 230, 118, 0.15) 0%, rgba(0, 230, 118, 0.05) 100%)',
+                border: '1px solid rgba(0, 230, 118, 0.3)',
+                borderRadius: '6px',
+                color: '#00e676',
+                fontSize: '13px',
+                fontWeight: '500',
+                opacity: (fetchingAll || feeds.length === 0) ? 0.5 : 1,
+                cursor: (fetchingAll || feeds.length === 0) ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {fetchingAll ? `⏳ ${t('feeds.fetching')}` : `🔄 ${t('feeds.fetchAll')}`}
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              style={{
+                padding: '8px 16px',
+                background: showForm 
+                  ? 'linear-gradient(135deg, rgba(255, 82, 82, 0.15) 0%, rgba(255, 82, 82, 0.05) 100%)'
+                  : 'linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.05) 100%)',
+                border: `1px solid ${showForm ? 'rgba(255, 82, 82, 0.3)' : 'rgba(212, 168, 83, 0.3)'}`,
+                borderRadius: '6px',
+                color: showForm ? '#ff5252' : '#d4a853',
+                fontSize: '13px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {showForm ? `✕ ${t('feeds.cancel')}` : `+ ${t('feeds.add')}`}
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Error */}
       {error && (
-        <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-md text-red-200">
-          {t('common.error')}: {error}
+        <div style={{ 
+          marginBottom: '16px',
+          padding: '12px 16px',
+          background: 'linear-gradient(90deg, rgba(255, 82, 82, 0.1) 0%, rgba(255, 82, 82, 0.05) 100%)',
+          border: '1px solid rgba(255, 82, 82, 0.2)',
+          borderRadius: '6px',
+          color: '#ff5252',
+          fontSize: '13px'
+        }}>
+          ⚠️ {error}
         </div>
       )}
 
+      {/* Form */}
       {showForm && (
-        <div className="mb-6">
+        <div style={{ marginBottom: '24px' }} className="animate-fadeIn">
           <FeedForm onSubmit={handleAdd} onCancel={() => setShowForm(false)} />
         </div>
       )}
 
+      {/* Content */}
       {loading ? (
-        <div className="text-center py-12 text-gray-400">{t('common.loading')}</div>
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '48px',
+          color: 'var(--text-muted)'
+        }}>
+          <div style={{ fontSize: '24px', marginBottom: '12px' }}>⏳</div>
+          {t('common.loading')}
+        </div>
       ) : feeds.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">{t('feeds.noFeeds')}</div>
+        <div className="glass" style={{ 
+          textAlign: 'center', 
+          padding: '48px',
+          borderRadius: '12px',
+          background: 'rgba(255, 255, 255, 0.02)'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>📡</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+            {t('feeds.noFeeds')}
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '8px' }}>
+            {t('feeds.add')} RSS / dxtools
+          </div>
+        </div>
       ) : (
-        <div className="space-y-3">
-          {feeds.map(feed => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {feeds.map((feed, index) => (
             <div
               key={feed.id}
-              className="bg-gray-800 rounded-lg p-4 border border-gray-700 flex items-center justify-between gap-4"
+              className="glass glass-hover animate-fadeIn"
+              style={{
+                padding: '16px 20px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+                animationDelay: `${index * 50}ms`
+              }}
             >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-white font-medium truncate">{feed.title || feed.url}</h3>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    feed.source_type === 'rss'
-                      ? 'bg-orange-900/50 text-orange-300'
-                      : 'bg-purple-900/50 text-purple-300'
-                  }`}>
-                    {feed.source_type === 'rss' ? t('feeds.typeRss') : t('feeds.typeDxtools')}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex items-center gap-3" style={{ marginBottom: '6px' }}>
+                  <h3 style={{ 
+                    fontSize: '14px', 
+                    fontWeight: '500', 
+                    color: 'var(--text-primary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {feed.title || feed.url}
+                  </h3>
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontFamily: 'JetBrains Mono, monospace',
+                    letterSpacing: '0.5px',
+                    textTransform: 'uppercase',
+                    background: feed.source_type === 'rss' 
+                      ? 'rgba(255, 152, 0, 0.15)' 
+                      : 'rgba(156, 39, 176, 0.15)',
+                    color: feed.source_type === 'rss' ? '#ff9800' : '#ce93d8',
+                    border: `1px solid ${feed.source_type === 'rss' ? 'rgba(255, 152, 0, 0.3)' : 'rgba(156, 39, 176, 0.3)'}`
+                  }}>
+                    {feed.source_type}
                   </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    feed.is_active
-                      ? 'bg-green-900/50 text-green-300'
-                      : 'bg-gray-700 text-gray-400'
-                  }`}>
-                    {feed.is_active ? t('feeds.active') : t('feeds.inactive')}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <div 
+                      className="status-dot" 
+                      style={{ 
+                        background: feed.is_active ? 'var(--accent-green)' : 'var(--text-muted)',
+                        animation: feed.is_active ? 'pulse 2s infinite' : 'none'
+                      }} 
+                    />
+                    <span style={{ 
+                      fontSize: '11px', 
+                      color: feed.is_active ? 'var(--accent-green)' : 'var(--text-muted)',
+                      fontFamily: 'JetBrains Mono, monospace'
+                    }}>
+                      {feed.is_active ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-400 truncate">{feed.url}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {t('feeds.lastFetched')}: {formatDate(feed.last_fetched_at)}
+                <p style={{ 
+                  fontSize: '12px', 
+                  color: 'var(--text-muted)',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {feed.url}
+                </p>
+                <p style={{ 
+                  fontSize: '11px', 
+                  color: 'var(--text-muted)',
+                  marginTop: '4px',
+                  fontFamily: 'JetBrains Mono, monospace'
+                }}>
+                  LAST FETCH: {formatDate(feed.last_fetched_at)}
                 </p>
               </div>
-              <div className="flex gap-2 shrink-0">
+              
+              <div className="flex gap-2" style={{ flexShrink: 0 }}>
                 <button
                   onClick={() => handleFetchOne(feed.id)}
                   disabled={fetchingIds.has(feed.id)}
-                  className="px-3 py-1.5 text-sm bg-green-600/80 text-white rounded hover:bg-green-600 transition-colors disabled:opacity-50"
+                  style={{
+                    padding: '6px 14px',
+                    background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(0, 212, 255, 0.05) 100%)',
+                    border: '1px solid rgba(0, 212, 255, 0.3)',
+                    borderRadius: '6px',
+                    color: 'var(--accent-cyan)',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: fetchingIds.has(feed.id) ? 'not-allowed' : 'pointer',
+                    opacity: fetchingIds.has(feed.id) ? 0.5 : 1,
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  {fetchingIds.has(feed.id) ? t('feeds.fetching') : t('feeds.fetchNow')}
+                  {fetchingIds.has(feed.id) ? '⏳' : '↓'} {t('feeds.fetchNow')}
                 </button>
                 <button
                   onClick={() => handleDelete(feed.id)}
-                  className="px-3 py-1.5 text-sm bg-red-600/80 text-white rounded hover:bg-red-600 transition-colors"
+                  style={{
+                    padding: '6px 14px',
+                    background: 'linear-gradient(135deg, rgba(255, 82, 82, 0.15) 0%, rgba(255, 82, 82, 0.05) 100%)',
+                    border: '1px solid rgba(255, 82, 82, 0.2)',
+                    borderRadius: '6px',
+                    color: '#ff5252',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  {t('feeds.delete')}
+                  ✕ {t('feeds.delete')}
                 </button>
               </div>
             </div>

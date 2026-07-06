@@ -32,48 +32,107 @@ export function ArticleListPage({ onArticleSelect, favoritesOnly }: ArticleListP
     : articles
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-white">
-          {favoritesOnly ? t('articles.favorites') : t('articles.title')}
-        </h2>
-        {!favoritesOnly && (
-          <div className="flex items-center gap-3">
-            <select
-              value={feedFilter ?? ''}
-              onChange={e => setFeedFilter(e.target.value ? Number(e.target.value) : undefined)}
-              className="bg-gray-800 border border-gray-600 rounded-md px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500"
-            >
-              <option value="">{t('articles.all')}</option>
-              {feeds.map(f => (
-                <option key={f.id} value={f.id}>{f.title || f.url}</option>
-              ))}
-            </select>
-            <button
-              onClick={() => setShowUnreadOnly(!showUnreadOnly)}
-              className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-                showUnreadOnly
-                  ? 'bg-blue-600 border-blue-600 text-white'
-                  : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              {t('articles.unread')}
-            </button>
-          </div>
-        )}
+    <div style={{ padding: '24px 32px' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ 
+          fontSize: '10px', 
+          color: 'var(--text-muted)',
+          fontFamily: 'JetBrains Mono, monospace',
+          letterSpacing: '2px',
+          textTransform: 'uppercase',
+          marginBottom: '8px'
+        }}>
+          {favoritesOnly ? 'STARRED ARTICLES' : 'ARTICLE FEED'}
+        </div>
+        <div className="flex items-center justify-between">
+          <h2 style={{ 
+            fontSize: '24px', 
+            fontWeight: '600',
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.5px'
+          }}>
+            {favoritesOnly ? t('articles.favorites') : t('articles.title')}
+          </h2>
+          {!favoritesOnly && (
+            <div className="flex items-center gap-3">
+              <select
+                value={feedFilter ?? ''}
+                onChange={e => setFeedFilter(e.target.value ? Number(e.target.value) : undefined)}
+                style={{
+                  padding: '8px 12px',
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '6px',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  cursor: 'pointer',
+                  minWidth: '150px'
+                }}
+              >
+                <option value="">{t('articles.all')}</option>
+                {feeds.map(f => (
+                  <option key={f.id} value={f.id}>{f.title || f.url}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowUnreadOnly(!showUnreadOnly)}
+                style={{
+                  padding: '8px 16px',
+                  background: showUnreadOnly
+                    ? 'linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.05) 100%)'
+                    : 'rgba(255, 255, 255, 0.03)',
+                  border: `1px solid ${showUnreadOnly ? 'rgba(212, 168, 83, 0.3)' : 'var(--border-primary)'}`,
+                  borderRadius: '6px',
+                  color: showUnreadOnly ? '#d4a853' : 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                ● {t('articles.unread')}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Content */}
       {loading ? (
-        <div className="text-center py-12 text-gray-400">{t('common.loading')}</div>
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '48px',
+          color: 'var(--text-muted)'
+        }}>
+          <div style={{ fontSize: '24px', marginBottom: '12px' }}>⏳</div>
+          {t('common.loading')}
+        </div>
       ) : filteredArticles.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">{t('articles.noArticles')}</div>
+        <div className="glass" style={{ 
+          textAlign: 'center', 
+          padding: '48px',
+          borderRadius: '12px'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>
+            {favoritesOnly ? '⭐' : '📰'}
+          </div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+            {t('articles.noArticles')}
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '8px' }}>
+            {favoritesOnly ? 'Star articles to see them here' : 'Add RSS feeds to get started'}
+          </div>
+        </div>
       ) : (
-        <div className="space-y-3">
-          {filteredArticles.map(article => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {filteredArticles.map((article, index) => (
             <ArticleCard
               key={article.id}
               article={article}
               onClick={() => onArticleSelect(article.id)}
+              style={{ animationDelay: `${index * 30}ms` }}
             />
           ))}
         </div>

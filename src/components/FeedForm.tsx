@@ -25,46 +25,126 @@ export function FeedForm({ onSubmit, onCancel }: FeedFormProps) {
     }
   }
 
+  const inputStyle = {
+    width: '100%',
+    padding: '10px 14px',
+    background: 'var(--bg-primary)',
+    border: '1px solid var(--border-primary)',
+    borderRadius: '6px',
+    color: 'var(--text-primary)',
+    fontSize: '13px',
+    fontFamily: 'JetBrains Mono, monospace',
+    transition: 'border-color 0.2s ease'
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-      <h3 className="text-white font-semibold mb-3">{t('feeds.add')}</h3>
-      <div className="flex flex-col gap-3">
+    <form 
+      onSubmit={handleSubmit} 
+      style={{
+        padding: '24px',
+        borderRadius: '12px',
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '1px solid var(--border-primary)',
+        backdropFilter: 'blur(20px)'
+      }}
+    >
+      <div className="flex items-center gap-3" style={{ marginBottom: '20px' }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '8px',
+          background: 'linear-gradient(135deg, rgba(212, 168, 83, 0.2) 0%, rgba(212, 168, 83, 0.05) 100%)',
+          border: '1px solid rgba(212, 168, 83, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <span style={{ fontSize: '16px' }}>+</span>
+        </div>
+        <h3 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>
+          {t('feeds.add')}
+        </h3>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div>
-          <label className="block text-sm text-gray-400 mb-1">{t('feeds.url')}</label>
+          <label style={{ 
+            display: 'block', 
+            fontSize: '12px', 
+            color: 'var(--text-secondary)',
+            marginBottom: '6px',
+            fontFamily: 'JetBrains Mono, monospace'
+          }}>
+            {t('feeds.url')}
+          </label>
           <input
             type="url"
             value={url}
             onChange={e => setUrl(e.target.value)}
             placeholder="https://example.com/feed.xml"
-            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            style={inputStyle}
+            onFocus={e => e.target.style.borderColor = 'rgba(212, 168, 83, 0.5)'}
+            onBlur={e => e.target.style.borderColor = 'var(--border-primary)'}
             required
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-400 mb-1">{t('feeds.type')}</label>
+          <label style={{ 
+            display: 'block', 
+            fontSize: '12px', 
+            color: 'var(--text-secondary)',
+            marginBottom: '6px',
+            fontFamily: 'JetBrains Mono, monospace'
+          }}>
+            {t('feeds.type')}
+          </label>
           <select
             value={sourceType}
             onChange={e => setSourceType(e.target.value as 'rss' | 'dxtools')}
-            className="bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+            style={{
+              ...inputStyle,
+              cursor: 'pointer'
+            }}
           >
             <option value="rss">{t('feeds.typeRss')}</option>
             <option value="dxtools">{t('feeds.typeDxtools')}</option>
           </select>
         </div>
-        <div className="flex gap-2 justify-end">
+        <div className="flex gap-3 justify-end" style={{ marginTop: '8px' }}>
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-gray-300 hover:text-white rounded-md hover:bg-gray-700 transition-colors"
+            style={{
+              padding: '10px 20px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid var(--border-primary)',
+              borderRadius: '6px',
+              color: 'var(--text-secondary)',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
           >
             {t('feeds.cancel')}
           </button>
           <button
             type="submit"
             disabled={submitting || !url.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              padding: '10px 20px',
+              background: 'linear-gradient(135deg, rgba(212, 168, 83, 0.2) 0%, rgba(212, 168, 83, 0.1) 100%)',
+              border: '1px solid rgba(212, 168, 83, 0.3)',
+              borderRadius: '6px',
+              color: '#d4a853',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: (submitting || !url.trim()) ? 'not-allowed' : 'pointer',
+              opacity: (submitting || !url.trim()) ? 0.5 : 1,
+              transition: 'all 0.2s ease'
+            }}
           >
-            {submitting ? t('feeds.fetching') : t('feeds.save')}
+            {submitting ? '⏳ ' : '💾 '}{submitting ? t('feeds.fetching') : t('feeds.save')}
           </button>
         </div>
       </div>
