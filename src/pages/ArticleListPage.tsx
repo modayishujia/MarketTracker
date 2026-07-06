@@ -12,9 +12,10 @@ interface ArticleListPageProps {
 export function ArticleListPage({ onArticleSelect, favoritesOnly }: ArticleListPageProps) {
   const { t } = useTranslation()
   const { articles, loading, loadArticles } = useArticleStore()
-  const { feeds, loadFeeds } = useFeedStore()
+  const { feeds, loadFeeds, fetchAllActive } = useFeedStore()
   const [feedFilter, setFeedFilter] = useState<number | undefined>(undefined)
   const [showUnreadOnly, setShowUnreadOnly] = useState(false)
+  const [fetching, setFetching] = useState(false)
 
   useEffect(() => {
     loadFeeds()
@@ -26,6 +27,19 @@ export function ArticleListPage({ onArticleSelect, favoritesOnly }: ArticleListP
       isFavorite: favoritesOnly ? true : undefined
     })
   }, [loadArticles, feedFilter, favoritesOnly])
+
+  const handleFetchAll = async () => {
+    setFetching(true)
+    try {
+      await fetchAllActive()
+      await loadArticles({
+        feedId: feedFilter,
+        isFavorite: favoritesOnly ? true : undefined
+      })
+    } finally {
+      setFetching(false)
+    }
+  }
 
   const filteredArticles = showUnreadOnly
     ? articles.filter(a => !a.is_read)
@@ -52,10 +66,28 @@ export function ArticleListPage({ onArticleSelect, favoritesOnly }: ArticleListP
             color: 'var(--text-primary)',
             letterSpacing: '-0.5px'
           }}>
-            {favoritesOnly ? t('articles.favorites') : t('articles.title')}
+            {favoritesOnly ? t('articles.favorites') : t('nav.sources')}
           </h2>
           {!favoritesOnly && (
             <div className="flex items-center gap-3">
+              <button
+                onClick={handleFetchAll}
+                disabled={fetching || feeds.length === 0}
+                style={{
+                  padding: '8px 16px',
+                  background: 'linear-gradient(135deg, rgba(0, 230, 118, 0.15) 0%, rgba(0, 230, 118, 0.05) 100%)',
+                  border: '1px solid rgba(0, 230, 118, 0.3)',
+                  borderRadius: '6px',
+                  color: '#00e676',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  opacity: (fetching || feeds.length === 0) ? 0.5 : 1,
+                  cursor: (fetching || feeds.length === 0) ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {fetching ? '⏳ ' : '🔄 '}{fetching ? t('feeds.fetching') : t('feeds.fetchAll')}
+              </button>
               <select
                 value={feedFilter ?? ''}
                 onChange={e => setFeedFilter(e.target.value ? Number(e.target.value) : undefined)}
@@ -122,7 +154,7 @@ export function ArticleListPage({ onArticleSelect, favoritesOnly }: ArticleListP
             {t('articles.noArticles')}
           </div>
           <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '8px' }}>
-            {favoritesOnly ? 'Star articles to see them here' : 'Add RSS feeds to get started'}
+            {favoritesOnly ? 'Star articles to see them here' : 'Click "Fetch All" to load articles'}
           </div>
         </div>
       ) : (
