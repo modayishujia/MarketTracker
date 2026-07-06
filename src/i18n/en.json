@@ -74,6 +74,24 @@
     "save": "Save",
     "saved": "Saved"
   },
+  "dashboard": {
+    "title": "Analysis Dashboard",
+    "noData": "No analysis data yet",
+    "noDataHint": "Run sentiment analysis on articles to see charts",
+    "sentimentTrend": "Sentiment Trend",
+    "assetFrequency": "Asset Mention Frequency",
+    "sentimentDistribution": "Sentiment Distribution",
+    "bullish": "Bullish",
+    "bearish": "Bearish",
+    "neutral": "Neutral",
+    "generateReport": "Generate Report",
+    "generateReportButton": "Generate Comprehensive Report",
+    "generating": "Generating...",
+    "noArticlesForReport": "No articles available for report",
+    "keyThemes": "Key Themes",
+    "marketOutlook": "Market Outlook",
+    "articlesAnalyzed": "Analyzed {{count}} articles"
+  },
   "common": {
     "loading": "Loading...",
     "error": "Error",

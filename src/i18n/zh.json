@@ -74,6 +74,24 @@
     "save": "保存",
     "saved": "已保存"
   },
+  "dashboard": {
+    "title": "分析仪表盘",
+    "noData": "暂无分析数据",
+    "noDataHint": "请先对文章进行情绪分析以查看图表",
+    "sentimentTrend": "情绪趋势",
+    "assetFrequency": "资产提及频率",
+    "sentimentDistribution": "情绪分布",
+    "bullish": "看涨",
+    "bearish": "看跌",
+    "neutral": "中性",
+    "generateReport": "生成报告",
+    "generateReportButton": "生成综合报告",
+    "generating": "生成中...",
+    "noArticlesForReport": "没有可用文章生成报告",
+    "keyThemes": "关键主题",
+    "marketOutlook": "市场展望",
+    "articlesAnalyzed": "已分析 {{count}} 篇文章"
+  },
   "common": {
     "loading": "加载中...",
     "error": "错误",

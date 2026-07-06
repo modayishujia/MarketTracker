@@ -1,5 +1,12 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'path'
+import { registerFeedHandlers } from './ipc/feeds'
+import { registerArticleHandlers } from './ipc/articles'
+import { registerAnalysisHandlers } from './ipc/analyses'
+import { registerNoteHandlers } from './ipc/notes'
+import { registerSettingsHandlers } from './ipc/settings'
+import { registerLLMHandlers } from './ipc/llm'
+import { startScheduler, restartScheduler } from './services/scheduler'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -21,7 +28,21 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  registerFeedHandlers()
+  registerArticleHandlers()
+  registerAnalysisHandlers()
+  registerNoteHandlers()
+  registerSettingsHandlers()
+  registerLLMHandlers()
+
+  createWindow()
+  startScheduler()
+})
+
+ipcMain.on('scheduler:restart', () => {
+  restartScheduler()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
