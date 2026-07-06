@@ -1,6 +1,8 @@
 import { ipcMain } from 'electron'
 import { analyzeArticle, analyzeSentiment, generateReport, testLLMConnection } from '../services/llm'
 import { getSetting } from '../db/settings'
+import { getArticleById } from '../db/articles'
+import { addAnalysis } from '../db/analyses'
 import type { LLMConfig } from '../../src/types'
 
 function getLLMConfig(): LLMConfig {
@@ -11,14 +13,26 @@ function getLLMConfig(): LLMConfig {
 }
 
 export function registerLLMHandlers() {
-  ipcMain.handle('llm:analyzeArticle', async (_event, title: string, content: string) => {
+  ipcMain.handle('llm:analyzeArticle', async (_event, articleId: number) => {
     const config = getLLMConfig()
-    return analyzeArticle(config, title, content)
+    const article = getArticleById(articleId)
+    if (!article) {
+      throw new Error('Article not found')
+    }
+    const result = await analyzeArticle(config, article.title, article.content || '')
+    addAnalysis(articleId, 'insight', JSON.stringify(result), config.model)
+    return result
   })
 
-  ipcMain.handle('llm:analyzeSentiment', async (_event, title: string, content: string) => {
+  ipcMain.handle('llm:analyzeSentiment', async (_event, articleId: number) => {
     const config = getLLMConfig()
-    return analyzeSentiment(config, title, content)
+    const article = getArticleById(articleId)
+    if (!article) {
+      throw new Error('Article not found')
+    }
+    const result = await analyzeSentiment(config, article.title, article.content || '')
+    addAnalysis(articleId, 'sentiment', JSON.stringify(result), config.model)
+    return result
   })
 
   ipcMain.handle('llm:generateReport', async (_event, articles: { title: string; content: string }[]) => {

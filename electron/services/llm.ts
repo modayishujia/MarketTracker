@@ -25,6 +25,10 @@ async function postChatCompletion(
   config: LLMConfig,
   messages: ChatMessage[]
 ): Promise<string> {
+  if (!config.baseUrl || !config.apiKey || !config.model) {
+    throw new Error('LLM not configured. Please set API URL, API Key, and Model in Settings.')
+  }
+  
   const url = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`
   const res = await fetch(url, {
     method: 'POST',
