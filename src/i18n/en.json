@@ -24,7 +24,10 @@
     "delete": "Delete",
     "edit": "Edit",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "fetchAll": "Fetch All Active",
+    "noFeeds": "No feeds added yet",
+    "fetching": "Fetching..."
   },
   "articles": {
     "title": "Articles",
