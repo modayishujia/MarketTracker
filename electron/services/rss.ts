@@ -3,8 +3,9 @@ import { addArticle } from '../db/articles'
 import { updateFeedLastFetched } from '../db/feeds'
 
 const parser = new Parser({
-  timeout: 10000,
-  headers: { 'User-Agent': 'MoneyAnalysis/1.0' }
+  timeout: 8000,
+  headers: { 'User-Agent': 'MoneyAnalysis/1.0' },
+  maxRedirects: 3
 })
 
 export interface FetchedArticle {
@@ -16,17 +17,33 @@ export interface FetchedArticle {
 
 export async function fetchFeed(feedUrl: string): Promise<FetchedArticle[]> {
   try {
-    const feed = await parser.parseURL(feedUrl)
-    return (feed.items || [])
-      .filter(item => item.title && item.link)
-      .map(item => ({
-        title: item.title!,
-        url: item.link!,
-        content: item.content || item.contentSnippet || null,
-        publishedAt: item.isoDate || item.pubDate || null
-      }))
+    // Validate URL
+    if (!feedUrl || !feedUrl.startsWith('http')) {
+      return []
+    }
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000)
+
+    try {
+      const feed = await parser.parseURL(feedUrl)
+      clearTimeout(timeout)
+      
+      return (feed.items || [])
+        .filter(item => item && item.title && item.link)
+        .slice(0, 100) // Limit articles per feed
+        .map(item => ({
+          title: String(item.title || '').substring(0, 500),
+          url: String(item.link || ''),
+          content: item.content || item.contentSnippet ? String(item.content || item.contentSnippet).substring(0, 2000) : null,
+          publishedAt: item.isoDate || item.pubDate || null
+        }))
+    } catch (parseErr) {
+      clearTimeout(timeout)
+      return []
+    }
   } catch (err: any) {
-    console.error(`Failed to fetch feed ${feedUrl}:`, err.message)
+    // Silently fail - don't crash
     return []
   }
 }
@@ -39,21 +56,31 @@ export async function fetchAndStoreFeed(
   try {
     const articles = await fetchFeed(feedUrl)
     let newCount = 0
+
     for (const article of articles) {
       try {
-        const result = addArticle(feedId, article.title, article.url, article.content || undefined, article.publishedAt || undefined)
+        if (!article.url) continue
+        const result = addArticle(
+          feedId,
+          article.title || 'Untitled',
+          article.url,
+          article.content || undefined,
+          article.publishedAt || undefined
+        )
         if (result) newCount++
-      } catch (err: any) {
-        // Skip duplicate or invalid articles
-        if (!err.message?.includes('UNIQUE constraint')) {
-          console.error('Failed to add article:', err.message)
-        }
+      } catch {
+        // Skip duplicates or invalid
       }
     }
-    updateFeedLastFetched(feedId)
+
+    try {
+      updateFeedLastFetched(feedId)
+    } catch {
+      // Ignore
+    }
+
     return newCount
-  } catch (err: any) {
-    console.error(`Failed to fetch and store feed ${feedId}:`, err.message)
+  } catch {
     return 0
   }
 }

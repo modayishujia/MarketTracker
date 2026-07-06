@@ -1,7 +1,6 @@
 import { getActiveFeeds } from '../db/feeds'
 import { getSetting } from '../db/settings'
 import { fetchAndStoreFeed } from './rss'
-import { startAutoAnalysis } from './batchAnalysis'
 import { BrowserWindow } from 'electron'
 
 let schedulerInterval: NodeJS.Timeout | null = null
@@ -10,10 +9,10 @@ let isFetching = false
 export function startScheduler() {
   stopScheduler()
   const intervalMinutes = parseInt(getSetting('fetchInterval') || '30')
-  const intervalMs = intervalMinutes * 60 * 1000
+  const intervalMs = Math.max(intervalMinutes, 5) * 60 * 1000
 
-  schedulerInterval = setInterval(async () => {
-    await fetchAllFeeds()
+  schedulerInterval = setInterval(() => {
+    fetchAllFeeds().catch(() => {})
   }, intervalMs)
 
   console.log(`Scheduler started with ${intervalMinutes} minute interval`)
@@ -23,7 +22,6 @@ export function stopScheduler() {
   if (schedulerInterval) {
     clearInterval(schedulerInterval)
     schedulerInterval = null
-    console.log('Scheduler stopped')
   }
 }
 
@@ -33,42 +31,48 @@ export function restartScheduler() {
 }
 
 export async function fetchAllFeeds(): Promise<number> {
-  if (isFetching) return 0
+  if (isFetching) {
+    console.log('Already fetching, skipping...')
+    return 0
+  }
+
   isFetching = true
+  let totalNew = 0
 
   try {
     const feeds = getActiveFeeds()
-    let totalNew = 0
+    console.log(`Fetching ${feeds.length} feeds...`)
 
-    for (const feed of feeds) {
+    for (let i = 0; i < feeds.length; i++) {
+      const feed = feeds[i]
       try {
         const newCount = await fetchAndStoreFeed(feed.id, feed.url, feed.source_type)
         totalNew += newCount
+        console.log(`[${i + 1}/${feeds.length}] ${feed.title}: ${newCount} new`)
       } catch (err: any) {
-        console.error(`Failed to fetch feed ${feed.title}:`, err.message)
+        console.error(`Failed: ${feed.title} - ${err.message}`)
+      }
+
+      // Delay between feeds to avoid overwhelming
+      if (i < feeds.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 200))
       }
     }
 
     // Notify renderer
-    const windows = BrowserWindow.getAllWindows()
-    windows.forEach(win => {
-      if (!win.isDestroyed()) {
-        win.webContents.send('feeds:fetched', { newCount: totalNew })
-      }
-    })
+    try {
+      const windows = BrowserWindow.getAllWindows()
+      windows.forEach(win => {
+        if (!win.isDestroyed()) {
+          win.webContents.send('feeds:fetched', { newCount: totalNew })
+        }
+      })
+    } catch {}
 
-    // Auto-analyze if enabled
-    if (totalNew > 0) {
-      const autoAnalyze = getSetting('autoAnalyze')
-      if (autoAnalyze === 'true') {
-        startAutoAnalysis()
-      }
-    }
-
-    console.log(`Scheduler: fetched ${totalNew} new articles`)
+    console.log(`Fetch complete: ${totalNew} new articles`)
     return totalNew
   } catch (err: any) {
-    console.error('Fetch all feeds error:', err.message)
+    console.error('Fetch error:', err.message)
     return 0
   } finally {
     isFetching = false
