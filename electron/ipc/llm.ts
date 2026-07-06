@@ -1,8 +1,8 @@
 import { ipcMain } from 'electron'
-import { analyzeArticle, analyzeSentiment, generateReport, testLLMConnection, fetchArticleContent, summarizeContent, customAnalysis } from '../services/llm'
+import { analyzeArticle, analyzeSentiment, generateReport, testLLMConnection, fetchArticleContent, summarizeContent, customAnalysis, generatePulseReport } from '../services/llm'
 import { getSetting } from '../db/settings'
 import { getArticleById } from '../db/articles'
-import { addAnalysis } from '../db/analyses'
+import { addAnalysis, getAnalysesByType } from '../db/analyses'
 import type { LLMConfig } from '../../src/types'
 
 function getLLMConfig(): LLMConfig {
@@ -151,6 +151,42 @@ export function registerLLMHandlers() {
       return result
     } catch (err: any) {
       return { error: err.message || '自定义分析失败' }
+    }
+  })
+
+  ipcMain.handle('llm:generatePulseReport', async (_event, limit?: number) => {
+    try {
+      const config = getLLMConfig()
+      if (!config.baseUrl || !config.apiKey || !config.model) {
+        return { error: '请先配置 AI 模型' }
+      }
+
+      // Collect recent analyses with sentiment data
+      const analyses = getAnalysesByType('insight', limit || 80)
+      const articles: { title: string; sentiment?: string; confidence?: number; assets?: string[]; summary?: string }[] = []
+
+      for (const a of analyses) {
+        try {
+          const parsed = JSON.parse(a.result)
+          const article = getArticleById(a.article_id)
+          articles.push({
+            title: article?.title || 'Unknown',
+            sentiment: parsed.sentiment,
+            confidence: parsed.confidence,
+            assets: parsed.assets,
+            summary: parsed.summary
+          })
+        } catch {}
+      }
+
+      if (articles.length === 0) {
+        return { error: '没有可用的分析数据，请先分析文章' }
+      }
+
+      const html = await withTimeout(generatePulseReport(config, articles), 120000)
+      return { html }
+    } catch (err: any) {
+      return { error: err.message || '报告生成失败' }
     }
   })
 }

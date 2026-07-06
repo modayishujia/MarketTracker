@@ -129,6 +129,50 @@ ${langInst}`
   return JSON.parse(raw) as ReportResult
 }
 
+export async function generatePulseReport(
+  config: LLMConfig,
+  articles: { title: string; sentiment?: string; confidence?: number; assets?: string[]; summary?: string }[]
+): Promise<string> {
+  const lang = getLanguage()
+
+  const systemPrompt = `You are a senior financial analyst creating a professional market sentiment report for institutional investors. 
+
+Generate a COMPLETE, self-contained HTML document (with embedded CSS) that is:
+- Visually rich with charts, gauges, and data visualizations using pure CSS/HTML (no external dependencies)
+- High information density - every section should deliver insights
+- Professional and persuasive tone
+- Use color coding: green for bullish, red for bearish, gold for neutral
+- Include: executive summary, sentiment distribution, key assets analysis, risk assessment, market outlook
+- Use CSS gradients, progress bars, badges, and grid layouts for visual appeal
+- Make it look like a Bloomberg terminal / professional dashboard
+- The HTML should be complete with <!DOCTYPE html>, <html>, <head> (with <style>), and <body>
+- Use modern CSS: grid, flexbox, gradients, border-radius, box-shadow
+- Dark theme (dark background, light text) matching a financial terminal aesthetic
+- ${lang === 'zh' ? 'All text content must be in Chinese.' : 'All text content must be in English.'}
+- Include the generation timestamp
+- Width: 100%, max-width 900px, centered
+
+Return ONLY the raw HTML string, no markdown wrapping, no explanation.`
+
+  const dataBlock = articles
+    .map((a, i) => {
+      const parts = [`Article ${i + 1}: ${a.title}`]
+      if (a.sentiment) parts.push(`Sentiment: ${a.sentiment}`)
+      if (a.confidence) parts.push(`Confidence: ${Math.round(a.confidence * 100)}%`)
+      if (a.assets?.length) parts.push(`Assets: ${a.assets.join(', ')}`)
+      if (a.summary) parts.push(`Summary: ${a.summary}`)
+      return parts.join(' | ')
+    })
+    .join('\n')
+
+  const prompt = `Based on the following ${articles.length} analyzed articles, generate a comprehensive market sentiment HTML report.\n\n${dataBlock}`
+
+  const raw = await callLLM(config, systemPrompt, prompt)
+  // Extract HTML from response (handle cases where LLM wraps in ```html...```)
+  const htmlMatch = raw.match(/<!DOCTYPE[\s\S]*<\/html>/i)
+  return htmlMatch ? htmlMatch[0] : raw
+}
+
 export async function fetchArticleContent(url: string): Promise<{ title: string; content: string; error?: string }> {
   try {
     const res = await fetch(url, {

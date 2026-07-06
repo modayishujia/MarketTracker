@@ -61,7 +61,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     testConnection: () => ipcRenderer.invoke('llm:testConnection'),
     fetchContent: (url: string) => ipcRenderer.invoke('llm:fetchContent', url),
     summarize: (title: string, content: string) => ipcRenderer.invoke('llm:summarize', title, content),
-    customAnalyze: (articleId: number, prompt: string) => ipcRenderer.invoke('llm:customAnalyze', articleId, prompt)
+    customAnalyze: (articleId: number, prompt: string) => ipcRenderer.invoke('llm:customAnalyze', articleId, prompt),
+    generatePulseReport: (limit?: number) => ipcRenderer.invoke('llm:generatePulseReport', limit)
   },
 
   batchAnalysis: {

@@ -31,6 +31,9 @@ export function MarketPulse() {
   const [batchProgress, setBatchProgress] = useState<{ processed: number; total: number; success: number } | null>(null)
   const [scanRunning, setScanRunning] = useState(false)
   const [scanProgress, setScanProgress] = useState<string>('')
+  const [reportHtml, setReportHtml] = useState<string | null>(null)
+  const [reportGenerating, setReportGenerating] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
 
   useEffect(() => {
     loadPulse()
@@ -119,6 +122,22 @@ export function MarketPulse() {
     } catch {}
     setScanRunning(false)
     setScanProgress('')
+  }
+
+  const handleGenerateReport = async () => {
+    setReportGenerating(true)
+    setReportError(null)
+    try {
+      const result = await (window as any).electronAPI.llm.generatePulseReport(80)
+      if (result.error) {
+        setReportError(result.error)
+      } else {
+        setReportHtml(result.html)
+      }
+    } catch (e: any) {
+      setReportError(e.message || 'Failed')
+    }
+    setReportGenerating(false)
   }
 
   const getSentimentColor = (s: string) => {
@@ -288,6 +307,31 @@ export function MarketPulse() {
               fontFamily: 'JetBrains Mono, monospace', cursor: (scanRunning || batchRunning) ? 'not-allowed' : 'pointer',
               opacity: (scanRunning || batchRunning) ? 0.5 : 1
             }}>↻ {i18n.language === 'zh' ? '刷新' : 'Refresh'}</button>
+            <button
+              onClick={handleGenerateReport}
+              disabled={reportGenerating || scanRunning || batchRunning}
+              style={{
+                padding: '7px 14px',
+                background: reportGenerating ? 'rgba(160,128,208,0.1)' : 'linear-gradient(135deg, rgba(160, 128, 208, 0.15) 0%, rgba(160, 128, 208, 0.05) 100%)',
+                border: `1px solid ${reportGenerating ? 'rgba(160,128,208,0.3)' : 'rgba(160, 128, 208, 0.2)'}`,
+                borderRadius: '5px',
+                color: 'var(--accent-purple)',
+                fontSize: '11px',
+                fontWeight: '500',
+                fontFamily: 'JetBrains Mono, monospace',
+                cursor: (reportGenerating || scanRunning || batchRunning) ? 'not-allowed' : 'pointer',
+                opacity: (reportGenerating || scanRunning || batchRunning) ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              {reportGenerating ? (
+                <><div className="thinking-dot" style={{ width: '4px', height: '4px' }} /> {i18n.language === 'zh' ? '生成中...' : 'Generating...'}</>
+              ) : (
+                <>📋 {i18n.language === 'zh' ? '生成报告' : 'Report'}</>
+              )}
+            </button>
           </div>
         </div>
         {/* Batch Progress */}
@@ -448,7 +492,7 @@ export function MarketPulse() {
       {data.assets.length > 0 && (
         <div style={{
           padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border-primary)',
-          borderRadius: '10px'
+          borderRadius: '10px', marginBottom: '16px'
         }}>
           <div style={{
             fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace',
@@ -526,6 +570,48 @@ export function MarketPulse() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Report Error */}
+      {reportError && (
+        <div style={{
+          marginBottom: '16px', padding: '12px 16px',
+          background: 'rgba(224, 85, 85, 0.06)', border: '1px solid rgba(224, 85, 85, 0.12)',
+          borderRadius: '8px', fontSize: '12px', color: 'var(--accent-red)'
+        }}>
+          ⚠️ {reportError}
+        </div>
+      )}
+
+      {/* Generated Report */}
+      {reportHtml && (
+        <div style={{
+          borderRadius: '10px', overflow: 'hidden',
+          border: '1px solid var(--border-primary)', marginBottom: '16px'
+        }}>
+          <div style={{
+            padding: '12px 16px', background: 'var(--bg-card)',
+            borderBottom: '1px solid var(--border-primary)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+          }}>
+            <span style={{
+              fontSize: '10px', color: 'var(--accent-purple)',
+              fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', textTransform: 'uppercase'
+            }}>
+              {i18n.language === 'zh' ? 'AI 市场报告' : 'AI MARKET REPORT'}
+            </span>
+            <button onClick={() => setReportHtml(null)} style={{
+              padding: '4px 10px', background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-primary)', borderRadius: '3px',
+              color: 'var(--text-muted)', fontSize: '10px', cursor: 'pointer'
+            }}>✕</button>
+          </div>
+          <iframe
+            sandbox="allow-same-origin"
+            style={{ width: '100%', height: '800px', border: 'none', background: '#0b0b14' }}
+            srcDoc={reportHtml}
+          />
         </div>
       )}
     </div>
