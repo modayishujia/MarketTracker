@@ -1,13 +1,16 @@
 {
   "app": {
-    "title": "Financial RSS Analyzer"
+    "title": "MoneyAnalysis"
   },
   "nav": {
+    "sources": "Sources",
+    "sentiment": "Sentiment",
+    "trending": "Trending",
+    "settings": "Settings",
     "feeds": "Feeds",
     "articles": "Articles",
     "favorites": "Favorites",
-    "analysis": "Analysis",
-    "settings": "Settings"
+    "analysis": "Analysis"
   },
   "feeds": {
     "title": "Feed Management",

@@ -9,10 +9,9 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   const { t } = useTranslation()
   
   const navItems = [
-    { key: 'feeds', icon: '📡', label: t('nav.feeds') },
-    { key: 'articles', icon: '📰', label: t('nav.articles') },
-    { key: 'favorites', icon: '⭐', label: t('nav.favorites') },
-    { key: 'analysis', icon: '📊', label: t('nav.analysis') },
+    { key: 'sources', icon: '📰', label: t('nav.sources') },
+    { key: 'sentiment', icon: '📊', label: t('nav.sentiment') },
+    { key: 'trending', icon: '🔥', label: t('nav.trending') },
     { key: 'settings', icon: '⚙️', label: t('nav.settings') }
   ]
 
@@ -55,7 +54,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
               color: 'var(--text-primary)',
               lineHeight: '1.2'
             }}>
-              {t('app.title')}
+              MoneyAnalysis
             </h1>
             <div style={{ 
               fontSize: '10px', 
@@ -73,18 +72,6 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-3">
-        <div style={{ 
-          fontSize: '10px', 
-          color: 'var(--text-muted)',
-          fontFamily: 'JetBrains Mono, monospace',
-          letterSpacing: '1.5px',
-          textTransform: 'uppercase',
-          padding: '8px 12px',
-          marginBottom: '4px'
-        }}>
-          {t('nav.feeds')}
-        </div>
-        
         {navItems.map(item => {
           const isActive = currentPage === item.key
           return (
@@ -93,7 +80,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
               onClick={() => onNavigate(item.key)}
               className="w-full flex items-center gap-3 rounded-lg mb-1 transition-all duration-200"
               style={{
-                padding: '10px 12px',
+                padding: '12px 14px',
                 background: isActive 
                   ? 'linear-gradient(90deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.05) 100%)'
                   : 'transparent',
@@ -101,7 +88,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 color: isActive ? '#d4a853' : 'var(--text-secondary)',
               }}
             >
-              <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>
+              <span style={{ fontSize: '18px', width: '24px', textAlign: 'center' }}>
                 {item.icon}
               </span>
               <span style={{ 
@@ -127,7 +114,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
         <div className="flex items-center gap-2 mb-2">
           <div className="status-dot" style={{ background: 'var(--accent-green)' }} />
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            {t('common.loading')}
+            System Online
           </span>
         </div>
         <div style={{ 

@@ -1,13 +1,16 @@
 {
   "app": {
-    "title": "财经RSS分析器"
+    "title": "MoneyAnalysis"
   },
   "nav": {
+    "sources": "信息源",
+    "sentiment": "情绪分析",
+    "trending": "热点发现",
+    "settings": "设置",
     "feeds": "订阅源",
     "articles": "文章",
     "favorites": "收藏",
-    "analysis": "分析",
-    "settings": "设置"
+    "analysis": "分析"
   },
   "feeds": {
     "title": "订阅源管理",

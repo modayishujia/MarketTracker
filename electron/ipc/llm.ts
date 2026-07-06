@@ -4,9 +4,9 @@ import { getSetting } from '../db/settings'
 import type { LLMConfig } from '../../src/types'
 
 function getLLMConfig(): LLMConfig {
-  const baseUrl = getSetting('llm.baseUrl') || ''
-  const apiKey = getSetting('llm.apiKey') || ''
-  const model = getSetting('llm.model') || ''
+  const baseUrl = getSetting('llm_baseUrl') || ''
+  const apiKey = getSetting('llm_apiKey') || ''
+  const model = getSetting('llm_model') || ''
   return { baseUrl, apiKey, model }
 }
 

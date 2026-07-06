@@ -98,13 +98,26 @@ export async function generateReport(
   return JSON.parse(raw) as ReportResult
 }
 
-export async function testLLMConnection(config: LLMConfig): Promise<boolean> {
+export async function testLLMConnection(config: LLMConfig): Promise<{ ok: boolean; error?: string }> {
   try {
-    await postChatCompletion(config, [
-      { role: 'user', content: 'Reply with the word "ok".' }
-    ])
-    return true
-  } catch {
-    return false
+    const url = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: 'user', content: 'Reply with "ok".' }]
+      })
+    })
+    if (!res.ok) {
+      const body = await res.text()
+      return { ok: false, error: `HTTP ${res.status}: ${body.substring(0, 200)}` }
+    }
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err.message || 'Unknown error' }
   }
 }

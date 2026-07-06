@@ -12,7 +12,7 @@ interface SettingsStore {
   saveFetchInterval: (interval: number) => Promise<void>
   saveAutoAnalyze: (auto: boolean) => Promise<void>
   saveLanguage: (lang: string) => Promise<void>
-  testConnection: () => Promise<boolean>
+  testConnection: () => Promise<{ ok: boolean; error?: string }>
 }
 
 export const useSettingsStore = create<SettingsStore>((set) => ({
@@ -66,8 +66,8 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   testConnection: async () => {
     try {
       return await (window as any).electronAPI.llm.testConnection()
-    } catch {
-      return false
+    } catch (err: any) {
+      return { ok: false, error: err.message || 'Unknown error' }
     }
   }
 }))

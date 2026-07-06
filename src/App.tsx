@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Layout } from './components/Layout'
-import { FeedPage } from './pages/FeedPage'
 import { ArticleListPage } from './pages/ArticleListPage'
 import { ArticleDetailPage } from './pages/ArticleDetailPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { TrendingPage } from './pages/TrendingPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { useSettingsStore } from './stores/settingsStore'
 
 function App() {
   const { i18n } = useTranslation()
-  const [currentPage, setCurrentPage] = useState('feeds')
+  const [currentPage, setCurrentPage] = useState('sources')
   const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null)
   const { loadSettings, language } = useSettingsStore()
 
@@ -33,7 +33,7 @@ function App() {
   }
 
   const renderPage = () => {
-    if ((currentPage === 'articles' || currentPage === 'favorites') && selectedArticleId !== null) {
+    if (currentPage === 'sources' && selectedArticleId !== null) {
       return (
         <ArticleDetailPage
           articleId={selectedArticleId}
@@ -43,18 +43,16 @@ function App() {
     }
 
     switch (currentPage) {
-      case 'feeds':
-        return <FeedPage />
-      case 'articles':
+      case 'sources':
         return <ArticleListPage onArticleSelect={handleArticleSelect} />
-      case 'favorites':
-        return <ArticleListPage onArticleSelect={handleArticleSelect} favoritesOnly />
-      case 'analysis':
+      case 'sentiment':
         return <DashboardPage />
+      case 'trending':
+        return <TrendingPage />
       case 'settings':
         return <SettingsPage />
       default:
-        return <FeedPage />
+        return <ArticleListPage onArticleSelect={handleArticleSelect} />
     }
   }
 
