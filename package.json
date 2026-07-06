@@ -8,9 +8,9 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "lint": "eslint src electron --ext .ts,.tsx",
-    "build:mac": "electron-vite build && electron-builder --mac",
-    "build:win": "electron-vite build && electron-builder --win",
-    "build:linux": "electron-vite build && electron-builder --linux"
+    "build:mac": "electron-vite build && electron-builder --mac --publish never",
+    "build:win": "electron-vite build && electron-builder --win --publish never",
+    "build:linux": "electron-vite build && electron-builder --linux --publish never"
   },
   "keywords": [],
   "author": "",
