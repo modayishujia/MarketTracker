@@ -9,6 +9,12 @@
     "dist-electron/**/*",
     "dist/renderer/**/*"
   ],
+  "extraResources": [
+    {
+      "from": "build/icon.png",
+      "to": "icon.png"
+    }
+  ],
   "mac": {
     "category": "public.app-category.finance",
     "target": "dmg"

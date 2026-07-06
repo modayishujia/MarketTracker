@@ -21,6 +21,10 @@ function App() {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
+  useEffect(() => {
+    document.title = i18n.language === 'zh' ? '市场跟踪大师' : 'MarketTracker'
+  }, [i18n.language])
+
   return <TerminalLayout />
 }
 

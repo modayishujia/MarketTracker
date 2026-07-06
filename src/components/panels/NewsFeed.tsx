@@ -764,54 +764,14 @@ export function NewsFeed({ onStatsUpdate }: Props) {
 
               {/* Empty State */}
               {!aiAnalysis && !fetchedContent && !fetchingContent && (
-                <div>
-                  {selectedArticle.content ? (
-                    <div>
-                      <iframe
-                        sandbox="allow-same-origin"
-                        style={{
-                          width: '100%',
-                          height: '300px',
-                          border: '1px solid var(--border-primary)',
-                          borderRadius: '8px',
-                          background: '#fff',
-                          marginBottom: '12px'
-                        }}
-                        srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-                          * { margin: 0; padding: 0; box-sizing: border-box; }
-                          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.75; color: #1a1a2e; padding: 18px 22px; background: #fff; word-break: break-word; overflow: hidden; }
-                          p { margin: 0 0 0.7em; }
-                          a { color: #208898; text-decoration: none; }
-                          img { max-width: 100%; height: auto; border-radius: 4px; }
-                          strong, b { font-weight: 600; }
-                          blockquote { margin: 0.6em 0; padding: 8px 12px; border-left: 3px solid #d4c090; background: #f8f6f0; border-radius: 0 4px 4px 0; color: #555; }
-                          ul, ol { margin: 0.3em 0 0.6em; padding-left: 1.3em; }
-                          li { margin: 0.2em 0; }
-                        </style></head><body>${selectedArticle.content}</body></html>`}
-                      />
-                      <div style={{
-                        textAlign: 'center',
-                        padding: '8px',
-                        color: 'var(--text-muted)',
-                        fontSize: '11px',
-                        fontFamily: 'JetBrains Mono, monospace'
-                      }}>
-                        {i18n.language === 'zh'
-                          ? '↑ RSS 摘要 · 点击标题栏 📄 抓取全文并 AI 分析'
-                          : '↑ RSS summary · Click 📄 in title bar to fetch full content & analyze'}
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--text-muted)' }}>
-                      <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.15 }}>📄</div>
-                      <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                        {i18n.language === 'zh' ? '点击标题栏 📄 抓取内容并分析' : 'Click 📄 in title bar to fetch and analyze'}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {i18n.language === 'zh' ? '或点击 ✏️ 进行自定义分析' : 'or click ✏️ for custom analysis'}
-                      </div>
-                    </div>
-                  )}
+                <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.15 }}>📄</div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    {i18n.language === 'zh' ? '点击标题栏 📄 抓取内容并分析' : 'Click 📄 in title bar to fetch and analyze'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {i18n.language === 'zh' ? '或点击 ✏️ 进行自定义分析' : 'or click ✏️ for custom analysis'}
+                  </div>
                 </div>
               )}
             </div>
