@@ -1,0 +1,84 @@
+{
+  "app": {
+    "title": "Financial RSS Analyzer"
+  },
+  "nav": {
+    "feeds": "Feeds",
+    "articles": "Articles",
+    "favorites": "Favorites",
+    "analysis": "Analysis",
+    "settings": "Settings"
+  },
+  "feeds": {
+    "title": "Feed Management",
+    "add": "Add Feed",
+    "url": "URL",
+    "type": "Type",
+    "typeRss": "RSS",
+    "typeDxtools": "DxTools",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "lastFetched": "Last Fetched",
+    "fetchNow": "Fetch Now",
+    "delete": "Delete",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "articles": {
+    "title": "Articles",
+    "all": "All",
+    "unread": "Unread",
+    "favorites": "Favorites",
+    "noArticles": "No articles yet",
+    "readMore": "Read More",
+    "markRead": "Mark as Read",
+    "addFavorite": "Add to Favorites",
+    "removeFavorite": "Remove from Favorites"
+  },
+  "analysis": {
+    "title": "Smart Analysis",
+    "insights": "Insights",
+    "sentiment": "Sentiment",
+    "report": "Report",
+    "analyze": "Analyze",
+    "analyzing": "Analyzing...",
+    "noAnalysis": "No analysis results yet",
+    "generateReport": "Generate Report",
+    "bullish": "Bullish",
+    "bearish": "Bearish",
+    "neutral": "Neutral",
+    "confidence": "Confidence",
+    "keyPoints": "Key Points",
+    "assets": "Assets",
+    "reasoning": "Reasoning"
+  },
+  "settings": {
+    "title": "Settings",
+    "llm": "LLM Configuration",
+    "baseUrl": "API Base URL",
+    "apiKey": "API Key",
+    "model": "Model",
+    "testConnection": "Test Connection",
+    "connectionSuccess": "Connection successful",
+    "connectionFailed": "Connection failed",
+    "fetchInterval": "Fetch Interval (minutes)",
+    "autoAnalyze": "Auto Analyze",
+    "language": "Language",
+    "chinese": "Chinese",
+    "english": "English",
+    "save": "Save",
+    "saved": "Saved"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "save": "Save",
+    "edit": "Edit"
+  }
+}

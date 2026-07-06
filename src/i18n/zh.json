@@ -1,0 +1,84 @@
+{
+  "app": {
+    "title": "财经RSS分析器"
+  },
+  "nav": {
+    "feeds": "订阅源",
+    "articles": "文章",
+    "favorites": "收藏",
+    "analysis": "分析",
+    "settings": "设置"
+  },
+  "feeds": {
+    "title": "订阅源管理",
+    "add": "添加订阅源",
+    "url": "URL地址",
+    "type": "类型",
+    "typeRss": "RSS",
+    "typeDxtools": "DxTools",
+    "status": "状态",
+    "active": "启用",
+    "inactive": "停用",
+    "lastFetched": "最后获取",
+    "fetchNow": "立即获取",
+    "delete": "删除",
+    "edit": "编辑",
+    "save": "保存",
+    "cancel": "取消"
+  },
+  "articles": {
+    "title": "文章列表",
+    "all": "全部",
+    "unread": "未读",
+    "favorites": "收藏",
+    "noArticles": "暂无文章",
+    "readMore": "阅读更多",
+    "markRead": "标记已读",
+    "addFavorite": "添加收藏",
+    "removeFavorite": "取消收藏"
+  },
+  "analysis": {
+    "title": "智能分析",
+    "insights": "洞察",
+    "sentiment": "情绪",
+    "report": "报告",
+    "analyze": "分析",
+    "analyzing": "分析中...",
+    "noAnalysis": "暂无分析结果",
+    "generateReport": "生成报告",
+    "bullish": "看涨",
+    "bearish": "看跌",
+    "neutral": "中性",
+    "confidence": "置信度",
+    "keyPoints": "关键点",
+    "assets": "资产",
+    "reasoning": "推理"
+  },
+  "settings": {
+    "title": "设置",
+    "llm": "LLM配置",
+    "baseUrl": "API地址",
+    "apiKey": "API密钥",
+    "model": "模型",
+    "testConnection": "测试连接",
+    "connectionSuccess": "连接成功",
+    "connectionFailed": "连接失败",
+    "fetchInterval": "获取间隔(分钟)",
+    "autoAnalyze": "自动分析",
+    "language": "语言",
+    "chinese": "中文",
+    "english": "英文",
+    "save": "保存",
+    "saved": "已保存"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "retry": "重试",
+    "confirm": "确认",
+    "cancel": "取消",
+    "delete": "删除",
+    "save": "保存",
+    "edit": "编辑"
+  }
+}
