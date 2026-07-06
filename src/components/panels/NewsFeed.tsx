@@ -13,22 +13,32 @@ interface Article {
   content?: string
 }
 
+interface AnalysisResult {
+  summary?: string
+  keyPoints?: string[]
+  sentiment?: string
+  confidence?: number
+  reasoning?: string
+  assets?: string[]
+  error?: string
+}
+
 interface Props {
   onStatsUpdate?: () => void
 }
 
 export function NewsFeed({ onStatsUpdate }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { feeds, loadFeeds, fetchAllActive } = useFeedStore()
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
   const [fetching, setFetching] = useState(false)
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
-  const [aiAnalysis, setAiAnalysis] = useState<any>(null)
+  const [aiAnalysis, setAiAnalysis] = useState<AnalysisResult | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [filter, setFilter] = useState<'all' | 'unread' | 'favorites'>('all')
   const [autoRefresh, setAutoRefresh] = useState(true)
-  const [showOriginal, setShowOriginal] = useState(false)
+  const [analysisCache, setAnalysisCache] = useState<Map<number, AnalysisResult>>(new Map())
 
   useEffect(() => {
     loadFeeds()
@@ -64,10 +74,30 @@ export function NewsFeed({ onStatsUpdate }: Props) {
     }
   }, [fetching])
 
-  const handleSelectArticle = (article: Article) => {
+  const handleSelectArticle = async (article: Article) => {
     setSelectedArticle(article)
     setAiAnalysis(null)
-    setShowOriginal(false)
+
+    // Check cache first
+    if (analysisCache.has(article.id)) {
+      setAiAnalysis(analysisCache.get(article.id))
+    } else {
+      // Load existing analysis
+      try {
+        const analyses = await (window as any).electronAPI.analyses.getByArticle(article.id)
+        if (analyses.length > 0) {
+          const latest = JSON.parse(analyses[0].result)
+          setAiAnalysis(latest)
+          setAnalysisCache(prev => new Map(prev).set(article.id, latest))
+        }
+      } catch {}
+    }
+
+    // Mark as read
+    if (!article.is_read) {
+      await (window as any).electronAPI.articles.markRead(article.id)
+      setArticles(prev => prev.map(a => a.id === article.id ? { ...a, is_read: 1 } : a))
+    }
   }
 
   const handleAnalyze = async () => {
@@ -76,10 +106,13 @@ export function NewsFeed({ onStatsUpdate }: Props) {
     setAiAnalysis(null)
     try {
       const result = await (window as any).electronAPI.llm.analyzeArticle(selectedArticle.id)
-      setAiAnalysis(result)
-      await (window as any).electronAPI.articles.markRead(selectedArticle.id)
-      setArticles(prev => prev.map(a => a.id === selectedArticle.id ? { ...a, is_read: 1 } : a))
-      onStatsUpdate?.()
+      if (!result.error) {
+        setAiAnalysis(result)
+        setAnalysisCache(prev => new Map(prev).set(selectedArticle.id, result))
+        onStatsUpdate?.()
+      } else {
+        setAiAnalysis(result)
+      }
     } catch (err: any) {
       setAiAnalysis({ error: err.message })
     } finally {
@@ -104,11 +137,11 @@ export function NewsFeed({ onStatsUpdate }: Props) {
     const diffMins = Math.floor(diffMs / 60000)
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
-    if (diffMins < 1) return 'NOW'
-    if (diffMins < 60) return `${diffMins}m`
-    if (diffHours < 24) return `${diffHours}h`
-    if (diffDays < 7) return `${diffDays}d`
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    if (diffMins < 1) return i18n.language === 'zh' ? '刚刚' : 'NOW'
+    if (diffMins < 60) return `${diffMins}${i18n.language === 'zh' ? '分钟前' : 'm'}`
+    if (diffHours < 24) return `${diffHours}${i18n.language === 'zh' ? '小时前' : 'h'}`
+    if (diffDays < 7) return `${diffDays}${i18n.language === 'zh' ? '天前' : 'd'}`
+    return new Date(dateStr).toLocaleDateString(i18n.language === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric' })
   }
 
   const getTimeColor = (dateStr: string | null) => {
@@ -119,6 +152,24 @@ export function NewsFeed({ onStatsUpdate }: Props) {
     return 'var(--text-muted)'
   }
 
+  const getSentimentColor = (sentiment?: string) => {
+    if (sentiment === 'bullish') return '#00e676'
+    if (sentiment === 'bearish') return '#ff5252'
+    return '#ffd740'
+  }
+
+  const getSentimentLabel = (sentiment?: string) => {
+    if (sentiment === 'bullish') return i18n.language === 'zh' ? '看涨' : 'Bullish'
+    if (sentiment === 'bearish') return i18n.language === 'zh' ? '看跌' : 'Bearish'
+    return i18n.language === 'zh' ? '中性' : 'Neutral'
+  }
+
+  const truncateContent = (content: string | undefined, maxLen: number = 150) => {
+    if (!content) return ''
+    if (content.length <= maxLen) return content
+    return content.substring(0, maxLen) + '...'
+  }
+
   const filteredArticles = articles.filter(a => {
     if (filter === 'unread') return !a.is_read
     if (filter === 'favorites') return a.is_favorite
@@ -127,17 +178,11 @@ export function NewsFeed({ onStatsUpdate }: Props) {
 
   const unreadCount = articles.filter(a => !a.is_read).length
 
-  const sentimentColors: Record<string, string> = {
-    bullish: '#00e676',
-    bearish: '#ff5252',
-    neutral: '#ffd740'
-  }
-
   return (
     <div style={{ height: '100%', display: 'flex' }}>
       {/* Article List */}
       <div style={{ 
-        flex: selectedArticle ? '0 0 380px' : '1',
+        flex: selectedArticle ? '0 0 420px' : '1',
         borderRight: selectedArticle ? '1px solid var(--border-primary)' : 'none',
         display: 'flex',
         flexDirection: 'column',
@@ -155,15 +200,19 @@ export function NewsFeed({ onStatsUpdate }: Props) {
           <button
             onClick={handleFetch}
             disabled={fetching}
-            className={fetching ? '' : 'btn-primary'}
             style={{
               padding: '5px 12px',
+              background: fetching ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg, rgba(0, 230, 118, 0.12) 0%, rgba(0, 230, 118, 0.04) 100%)',
+              border: `1px solid ${fetching ? 'var(--border-primary)' : 'rgba(0, 230, 118, 0.25)'}`,
+              borderRadius: '3px',
+              color: fetching ? 'var(--text-muted)' : '#00e676',
               fontSize: '10px',
-              opacity: fetching ? 0.5 : 1,
+              fontWeight: '500',
+              fontFamily: 'JetBrains Mono, monospace',
               cursor: fetching ? 'not-allowed' : 'pointer'
             }}
           >
-            {fetching ? `⏳ ${t('feed.syncing')}` : `↻ ${t('feed.sync')}`}
+            {fetching ? '⏳' : '↻'} {t('feed.sync')}
           </button>
 
           <div style={{ width: '1px', height: '16px', background: 'var(--border-primary)' }} />
@@ -172,18 +221,22 @@ export function NewsFeed({ onStatsUpdate }: Props) {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`btn-ghost ${filter === f ? 'active' : ''}`}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+              style={{
+                padding: '3px 8px',
+                background: filter === f ? 'rgba(212, 168, 83, 0.08)' : 'transparent',
+                border: `1px solid ${filter === f ? 'rgba(212, 168, 83, 0.2)' : 'transparent'}`,
+                borderRadius: '2px',
+                color: filter === f ? '#d4a853' : 'var(--text-muted)',
+                fontSize: '9px',
+                fontFamily: 'JetBrains Mono, monospace',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
             >
               {f === 'unread' && unreadCount > 0 && (
-                <span style={{ 
-                  background: '#d4a853', 
-                  color: '#000', 
-                  padding: '0 4px', 
-                  borderRadius: '2px',
-                  fontSize: '8px',
-                  fontWeight: '600'
-                }}>
+                <span style={{ background: '#d4a853', color: '#000', padding: '0 3px', borderRadius: '2px', fontSize: '8px', fontWeight: '600' }}>
                   {unreadCount}
                 </span>
               )}
@@ -192,25 +245,12 @@ export function NewsFeed({ onStatsUpdate }: Props) {
           ))}
 
           <div style={{ flex: 1 }} />
-
-          <button
-            onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`btn-ghost ${autoRefresh ? 'active' : ''}`}
-            style={{ fontSize: '8px' }}
-          >
-            {t('feed.autoRefresh')}
-          </button>
-
-          <span style={{ 
-            fontSize: '9px', 
-            color: 'var(--text-muted)',
-            fontFamily: 'JetBrains Mono, monospace'
-          }}>
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
             {filteredArticles.length}
           </span>
         </div>
 
-        {/* List */}
+        {/* Article Cards */}
         <div className="scroll-area" style={{ flex: 1 }}>
           {loading ? (
             <div style={{ padding: '40px', textAlign: 'center' }}>
@@ -223,13 +263,9 @@ export function NewsFeed({ onStatsUpdate }: Props) {
             </div>
           ) : filteredArticles.length === 0 ? (
             <div style={{ padding: '40px', textAlign: 'center' }}>
-              <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>📭</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                {t('feed.noArticles')}
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                {t('feed.syncHint')}
-              </div>
+              <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>📰</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{t('feed.noArticles')}</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{t('feed.syncHint')}</div>
             </div>
           ) : (
             filteredArticles.map((article, idx) => {
@@ -239,43 +275,60 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                   key={article.id}
                   onClick={() => handleSelectArticle(article)}
                   style={{
-                    padding: '10px 14px',
+                    padding: '14px 16px',
                     borderBottom: '1px solid var(--border-primary)',
                     cursor: 'pointer',
-                    background: isSelected ? 'rgba(212, 168, 83, 0.05)' : 'transparent',
+                    background: isSelected ? 'rgba(212, 168, 83, 0.06)' : 'transparent',
                     borderLeft: isSelected ? '3px solid #d4a853' : article.is_read ? '3px solid transparent' : '3px solid rgba(212, 168, 83, 0.4)',
                     transition: 'all 0.1s ease',
-                    animation: `fadeIn 0.12s ease-out ${Math.min(idx * 0.015, 0.4)}s both`
+                    animation: `fadeIn 0.12s ease-out ${Math.min(idx * 0.015, 0.3)}s both`
                   }}
                   onMouseEnter={e => !isSelected && (e.currentTarget.style.background = 'rgba(255,255,255,0.015)')}
                   onMouseLeave={e => !isSelected && (e.currentTarget.style.background = 'transparent')}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                    <h4 style={{ 
-                      fontSize: '12px', 
-                      fontWeight: article.is_read ? '400' : '500',
-                      color: article.is_read ? 'var(--text-secondary)' : 'var(--text-primary)',
-                      lineHeight: '1.4',
-                      flex: 1,
+                  {/* Time & Favorite */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ 
+                      fontSize: '9px', 
+                      color: getTimeColor(article.published_at),
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontWeight: '500'
+                    }}>
+                      {formatDate(article.published_at)}
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleToggleFavorite(article) }}
+                      style={{ background: 'none', border: 'none', color: article.is_favorite ? '#d4a853' : 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', padding: '2px' }}
+                    >
+                      {article.is_favorite ? '★' : '☆'}
+                    </button>
+                  </div>
+
+                  {/* Title */}
+                  <h4 style={{ 
+                    fontSize: '13px', 
+                    fontWeight: article.is_read ? '400' : '600',
+                    color: article.is_read ? 'var(--text-secondary)' : 'var(--text-primary)',
+                    lineHeight: '1.4',
+                    marginBottom: '8px'
+                  }}>
+                    {article.title}
+                  </h4>
+
+                  {/* Content Preview */}
+                  {article.content && (
+                    <p style={{
+                      fontSize: '11px',
+                      color: 'var(--text-muted)',
+                      lineHeight: '1.5',
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden'
                     }}>
-                      {article.title}
-                    </h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-                      <span style={{ 
-                        fontSize: '9px', 
-                        color: getTimeColor(article.published_at),
-                        fontFamily: 'JetBrains Mono, monospace',
-                        fontWeight: '500'
-                      }}>
-                        {formatDate(article.published_at)}
-                      </span>
-                      {article.is_favorite ? <span style={{ color: '#d4a853', fontSize: '10px' }}>★</span> : null}
-                    </div>
-                  </div>
+                      {truncateContent(article.content, 120)}
+                    </p>
+                  )}
                 </div>
               )
             })
@@ -288,35 +341,19 @@ export function NewsFeed({ onStatsUpdate }: Props) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           {/* Header */}
           <div style={{
-            padding: '12px 16px',
+            padding: '16px 20px',
             borderBottom: '1px solid var(--border-primary)',
             background: 'rgba(0,0,0,0.15)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
-                <div style={{ 
-                  fontSize: '8px', 
-                  color: '#d4a853',
-                  fontFamily: 'JetBrains Mono, monospace',
-                  letterSpacing: '1.5px',
-                  marginBottom: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#d4a853' }} />
-                  {t('feed.aiAnalysis')}
-                </div>
-                <h3 style={{ fontSize: '14px', fontWeight: '500', lineHeight: '1.4', marginBottom: '8px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: '600', lineHeight: '1.3', marginBottom: '8px' }}>
                   {selectedArticle.title}
-                </h3>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button
-                    onClick={() => handleToggleFavorite(selectedArticle)}
-                    style={{ background: 'none', border: 'none', color: selectedArticle.is_favorite ? '#d4a853' : 'var(--text-muted)', cursor: 'pointer', fontSize: '14px' }}
-                  >
-                    {selectedArticle.is_favorite ? '★' : '☆'}
-                  </button>
+                </h2>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                    {formatDate(selectedArticle.published_at)}
+                  </span>
                   <a 
                     href={selectedArticle.url} 
                     target="_blank" 
@@ -325,29 +362,22 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                       fontSize: '10px',
                       color: 'var(--accent-cyan)',
                       textDecoration: 'none',
-                      fontFamily: 'JetBrains Mono, monospace',
-                      padding: '3px 8px',
-                      background: 'rgba(0, 212, 255, 0.06)',
-                      border: '1px solid rgba(0, 212, 255, 0.15)',
-                      borderRadius: '3px'
+                      fontFamily: 'JetBrains Mono, monospace'
                     }}
                   >
                     {t('feed.openOriginal')} ↗
                   </a>
                   <button
-                    onClick={handleAnalyze}
-                    disabled={analyzing}
-                    className="btn-primary"
-                    style={{ padding: '4px 12px', fontSize: '10px' }}
+                    onClick={() => handleToggleFavorite(selectedArticle)}
+                    style={{ background: 'none', border: 'none', color: selectedArticle.is_favorite ? '#d4a853' : 'var(--text-muted)', cursor: 'pointer', fontSize: '14px' }}
                   >
-                    {analyzing ? `⏳ ${t('feed.analyzing')}` : `🤖 ${t('feed.aiAnalysis')}`}
+                    {selectedArticle.is_favorite ? '★' : '☆'}
                   </button>
                 </div>
               </div>
               <button
                 onClick={() => { setSelectedArticle(null); setAiAnalysis(null) }}
-                className="btn-secondary"
-                style={{ padding: '4px 8px', fontSize: '11px', marginLeft: '12px' }}
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-primary)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', width: '28px', height: '28px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 ✕
               </button>
@@ -355,97 +385,85 @@ export function NewsFeed({ onStatsUpdate }: Props) {
           </div>
 
           {/* Content */}
-          <div className="scroll-area" style={{ flex: 1, padding: '16px' }}>
-            {/* Show Original Content Toggle */}
-            {selectedArticle.content && (
+          <div className="scroll-area" style={{ flex: 1, padding: '20px' }}>
+            {/* AI Analysis Button */}
+            <div style={{ marginBottom: '20px' }}>
               <button
-                onClick={() => setShowOriginal(!showOriginal)}
-                className="btn-ghost"
-                style={{ marginBottom: '12px', fontSize: '10px' }}
+                onClick={handleAnalyze}
+                disabled={analyzing}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: analyzing ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg, rgba(212, 168, 83, 0.12) 0%, rgba(212, 168, 83, 0.04) 100%)',
+                  border: `1px solid ${analyzing ? 'var(--border-primary)' : 'rgba(212, 168, 83, 0.2)'}`,
+                  borderRadius: '6px',
+                  color: analyzing ? 'var(--text-muted)' : '#d4a853',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  cursor: analyzing ? 'not-allowed' : 'pointer',
+                  fontFamily: 'JetBrains Mono, monospace',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
               >
-                {showOriginal ? '▼' : '▶'} {t('feed.clickToAnalyze')}
+                {analyzing ? (
+                  <>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <div className="thinking-dot" style={{ width: '4px', height: '4px' }} />
+                      <div className="thinking-dot" style={{ width: '4px', height: '4px' }} />
+                      <div className="thinking-dot" style={{ width: '4px', height: '4px' }} />
+                    </div>
+                    {t('feed.analyzing')}
+                  </>
+                ) : aiAnalysis ? (
+                  <>🔄 {i18n.language === 'zh' ? '重新分析' : 'Re-analyze'}</>
+                ) : (
+                  <>🤖 {t('feed.aiAnalysis')}</>
+                )}
               </button>
-            )}
+            </div>
 
-            {/* Original Content */}
-            {showOriginal && selectedArticle.content && (
-              <div style={{
-                padding: '16px',
-                background: 'rgba(255,255,255,0.015)',
-                border: '1px solid var(--border-primary)',
-                borderRadius: '6px',
-                marginBottom: '16px',
-                fontSize: '12px',
-                lineHeight: '1.7',
-                color: 'var(--text-secondary)',
-                maxHeight: '300px',
-                overflow: 'auto'
-              }}>
-                {selectedArticle.content}
-              </div>
-            )}
-
-            {/* AI Analysis */}
-            {analyzing ? (
-              <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-                <div style={{ 
-                  width: '48px', height: '48px', margin: '0 auto 20px', borderRadius: '50%',
-                  border: '2px solid var(--border-primary)', borderTopColor: '#d4a853',
-                  animation: 'spin 1s linear infinite'
-                }} />
-                <div style={{ color: '#d4a853', fontSize: '13px', fontWeight: '500', marginBottom: '6px' }}>
-                  {t('feed.analyzing')}
-                </div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                  {t('feed.clickToAnalyze')}
-                </div>
-              </div>
-            ) : aiAnalysis?.error ? (
-              <div style={{
-                padding: '16px',
-                background: 'rgba(255, 82, 82, 0.06)',
-                border: '1px solid rgba(255, 82, 82, 0.12)',
-                borderRadius: '6px'
-              }}>
-                <div style={{ fontSize: '12px', color: '#ff5252', fontWeight: '500', marginBottom: '4px' }}>
-                  ⚠️ {t('feed.analysisFailed')}
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{aiAnalysis.error}</div>
-              </div>
-            ) : aiAnalysis ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* AI Analysis Result */}
+            {aiAnalysis && !aiAnalysis.error && (
+              <div style={{ marginBottom: '20px' }}>
                 {/* Sentiment Badge */}
                 <div style={{
-                  display: 'flex', alignItems: 'center', gap: '16px', padding: '16px',
-                  background: `${sentimentColors[aiAnalysis.sentiment] || '#ffd740'}06`,
-                  border: `1px solid ${sentimentColors[aiAnalysis.sentiment] || '#ffd740'}15`,
-                  borderRadius: '8px'
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '14px',
+                  background: `${getSentimentColor(aiAnalysis.sentiment)}06`,
+                  border: `1px solid ${getSentimentColor(aiAnalysis.sentiment)}15`,
+                  borderRadius: '8px',
+                  marginBottom: '16px'
                 }}>
-                  <div style={{ fontSize: '28px', lineHeight: '1' }}>
+                  <div style={{ fontSize: '24px' }}>
                     {aiAnalysis.sentiment === 'bullish' ? '📈' : aiAnalysis.sentiment === 'bearish' ? '📉' : '➡️'}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ 
-                      fontSize: '16px', fontWeight: '700',
-                      color: sentimentColors[aiAnalysis.sentiment] || '#ffd740',
-                      textTransform: 'uppercase', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px'
+                      fontSize: '14px', fontWeight: '700',
+                      color: getSentimentColor(aiAnalysis.sentiment),
+                      fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.5px'
                     }}>
-                      {aiAnalysis.sentiment === 'bullish' ? t('pulse.bullish') : aiAnalysis.sentiment === 'bearish' ? t('pulse.bearish') : t('pulse.neutral')}
+                      {getSentimentLabel(aiAnalysis.sentiment)}
                     </div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', marginTop: '2px' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
                       {Math.round((aiAnalysis.confidence || 0) * 100)}% {t('pulse.confidence')}
                     </div>
                   </div>
                   <div style={{
-                    width: '48px', height: '48px', borderRadius: '50%',
-                    background: `conic-gradient(${sentimentColors[aiAnalysis.sentiment] || '#ffd740'} ${(aiAnalysis.confidence || 0) * 360}deg, rgba(255,255,255,0.03) 0deg)`,
+                    width: '44px', height: '44px', borderRadius: '50%',
+                    background: `conic-gradient(${getSentimentColor(aiAnalysis.sentiment)} ${(aiAnalysis.confidence || 0) * 360}deg, rgba(255,255,255,0.03) 0deg)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}>
                     <div style={{
-                      width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-card)',
+                      width: '36px', height: '36px', borderRadius: '50%', background: 'var(--bg-card)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '11px', fontWeight: '600', fontFamily: 'JetBrains Mono, monospace',
-                      color: sentimentColors[aiAnalysis.sentiment] || '#ffd740'
+                      color: getSentimentColor(aiAnalysis.sentiment)
                     }}>
                       {Math.round((aiAnalysis.confidence || 0) * 100)}
                     </div>
@@ -453,31 +471,33 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                 </div>
 
                 {/* Summary */}
-                <div>
-                  <div style={{ fontSize: '8px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1.5px', marginBottom: '8px' }}>
-                    {t('feed.summary').toUpperCase()}
+                {aiAnalysis.summary && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', marginBottom: '8px' }}>
+                      {t('feed.summary').toUpperCase()}
+                    </div>
+                    <p style={{ 
+                      fontSize: '13px', lineHeight: '1.7', color: 'var(--text-secondary)',
+                      padding: '12px', background: 'rgba(255,255,255,0.015)', borderRadius: '6px', border: '1px solid var(--border-primary)'
+                    }}>
+                      {aiAnalysis.summary}
+                    </p>
                   </div>
-                  <p style={{ 
-                    fontSize: '13px', lineHeight: '1.7', color: 'var(--text-secondary)',
-                    padding: '14px', background: 'rgba(255,255,255,0.015)', borderRadius: '6px', border: '1px solid var(--border-primary)'
-                  }}>
-                    {aiAnalysis.summary}
-                  </p>
-                </div>
+                )}
 
                 {/* Key Points */}
-                {aiAnalysis.keyPoints?.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: '8px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1.5px', marginBottom: '8px' }}>
+                {aiAnalysis.keyPoints && aiAnalysis.keyPoints.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', marginBottom: '8px' }}>
                       {t('feed.keyInsights').toUpperCase()} ({aiAnalysis.keyPoints.length})
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {aiAnalysis.keyPoints.map((point: string, i: number) => (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {aiAnalysis.keyPoints.map((point, i) => (
                         <div key={i} style={{
                           display: 'flex', gap: '10px', padding: '10px 12px',
                           background: 'rgba(255,255,255,0.01)', borderRadius: '4px', border: '1px solid var(--border-primary)'
                         }}>
-                          <span style={{ color: '#d4a853', fontSize: '9px', fontFamily: 'JetBrains Mono, monospace', fontWeight: '600', minWidth: '18px' }}>
+                          <span style={{ color: '#d4a853', fontSize: '10px', fontFamily: 'JetBrains Mono, monospace', fontWeight: '600', minWidth: '18px' }}>
                             {String(i + 1).padStart(2, '0')}
                           </span>
                           <span style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>{point}</span>
@@ -487,15 +507,26 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                   </div>
                 )}
 
-                {/* Assets */}
-                {aiAnalysis.assets?.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: '8px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1.5px', marginBottom: '8px' }}>
+                {/* Related Assets */}
+                {aiAnalysis.assets && aiAnalysis.assets.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', marginBottom: '8px' }}>
                       {t('feed.relatedAssets').toUpperCase()}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {aiAnalysis.assets.map((asset: string, i: number) => (
-                        <span key={i} className="badge badge-cyan">{asset}</span>
+                      {aiAnalysis.assets.map((asset, i) => (
+                        <span key={i} style={{
+                          padding: '5px 12px',
+                          background: 'rgba(0, 212, 255, 0.06)',
+                          border: '1px solid rgba(0, 212, 255, 0.15)',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontFamily: 'JetBrains Mono, monospace',
+                          color: 'var(--accent-cyan)',
+                          fontWeight: '500'
+                        }}>
+                          {asset}
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -503,13 +534,13 @@ export function NewsFeed({ onStatsUpdate }: Props) {
 
                 {/* Reasoning */}
                 {aiAnalysis.reasoning && (
-                  <div>
-                    <div style={{ fontSize: '8px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1.5px', marginBottom: '8px' }}>
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', marginBottom: '8px' }}>
                       {t('feed.aiReasoning').toUpperCase()}
                     </div>
                     <p style={{ 
                       fontSize: '12px', lineHeight: '1.6', color: 'var(--text-muted)', fontStyle: 'italic',
-                      padding: '14px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px',
+                      padding: '12px', background: 'rgba(255,255,255,0.01)', borderRadius: '6px',
                       borderLeft: '2px solid rgba(212, 168, 83, 0.3)'
                     }}>
                       "{aiAnalysis.reasoning}"
@@ -517,9 +548,47 @@ export function NewsFeed({ onStatsUpdate }: Props) {
                   </div>
                 )}
               </div>
-            ) : (
+            )}
+
+            {/* Error */}
+            {aiAnalysis?.error && (
+              <div style={{
+                padding: '14px',
+                background: 'rgba(255, 82, 82, 0.06)',
+                border: '1px solid rgba(255, 82, 82, 0.12)',
+                borderRadius: '6px',
+                marginBottom: '20px'
+              }}>
+                <div style={{ fontSize: '12px', color: '#ff5252', fontWeight: '500' }}>⚠️ {aiAnalysis.error}</div>
+              </div>
+            )}
+
+            {/* Original Content */}
+            {selectedArticle.content && (
+              <div>
+                <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '1px', marginBottom: '10px' }}>
+                  {i18n.language === 'zh' ? '原文内容' : 'ORIGINAL CONTENT'}
+                </div>
+                <div style={{
+                  padding: '16px',
+                  background: 'rgba(255,255,255,0.015)',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  lineHeight: '1.8',
+                  color: 'var(--text-secondary)',
+                  maxHeight: '500px',
+                  overflow: 'auto'
+                }}>
+                  {selectedArticle.content}
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!aiAnalysis && !selectedArticle.content && (
               <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)' }}>
-                <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>🤖</div>
+                <div style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.3 }}>📄</div>
                 <div style={{ fontSize: '12px' }}>{t('feed.clickToAnalyze')}</div>
               </div>
             )}
