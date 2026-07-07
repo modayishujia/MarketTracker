@@ -11,7 +11,7 @@ type Panel = 'feed' | 'pulse' | 'brief' | 'alpha' | 'settings'
 
 export function TerminalLayout() {
   const { t, i18n } = useTranslation()
-  const { language, theme, autoAnalyze, saveLanguage, saveTheme, saveAutoAnalyze } = useSettingsStore()
+  const { language, theme, autoAnalyze, fontSize, saveLanguage, saveTheme, saveAutoAnalyze } = useSettingsStore()
   const [activePanel, setActivePanel] = useState<Panel>('feed')
   const [currentTime, setCurrentTime] = useState(new Date())
   const [articleCount, setArticleCount] = useState(0)
@@ -31,6 +31,15 @@ export function TerminalLayout() {
       i18n.changeLanguage(language)
     }
   }, [language, i18n])
+
+  useEffect(() => {
+    const sizeMap = {
+      small: '12px',
+      medium: '14px',
+      large: '16px'
+    }
+    document.documentElement.style.setProperty('--font-size-base', sizeMap[fontSize])
+  }, [fontSize])
 
   const loadStats = async () => {
     try {
