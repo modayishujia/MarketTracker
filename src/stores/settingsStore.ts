@@ -7,6 +7,7 @@ interface SettingsStore {
   autoAnalyze: boolean
   language: string
   theme: 'dark' | 'light'
+  fontSize: 'small' | 'medium' | 'large'
   loading: boolean
   loadSettings: () => Promise<void>
   saveLLMConfig: (config: LLMConfig) => Promise<void>
@@ -14,6 +15,7 @@ interface SettingsStore {
   saveAutoAnalyze: (auto: boolean) => Promise<void>
   saveLanguage: (lang: string) => Promise<void>
   saveTheme: (theme: 'dark' | 'light') => Promise<void>
+  saveFontSize: (size: 'small' | 'medium' | 'large') => Promise<void>
   testConnection: () => Promise<{ ok: boolean; error?: string }>
 }
 
@@ -23,19 +25,21 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   autoAnalyze: false,
   language: 'zh',
   theme: 'dark',
+  fontSize: 'medium',
   loading: false,
   loadSettings: async () => {
     set({ loading: true })
     try {
       const api = (window as any).electronAPI.settings
-      const [baseUrl, apiKey, model, interval, auto, lang, theme] = await Promise.all([
+      const [baseUrl, apiKey, model, interval, auto, lang, theme, fontSize] = await Promise.all([
         api.get('llm_baseUrl'),
         api.get('llm_apiKey'),
         api.get('llm_model'),
         api.get('fetchInterval'),
         api.get('autoAnalyze'),
         api.get('language'),
-        api.get('theme')
+        api.get('theme'),
+        api.get('fontSize')
       ])
       set({
         llmConfig: { baseUrl: baseUrl || '', apiKey: apiKey || '', model: model || '' },
@@ -43,6 +47,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
         autoAnalyze: auto === 'true',
         language: lang || 'zh',
         theme: theme === 'light' ? 'light' : 'dark',
+        fontSize: (fontSize as any) || 'medium',
         loading: false
       })
     } catch (error) {
@@ -72,6 +77,10 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
     await (window as any).electronAPI.settings.set('theme', theme)
     document.documentElement.setAttribute('data-theme', theme)
     set({ theme })
+  },
+  saveFontSize: async (size) => {
+    await (window as any).electronAPI.settings.set('fontSize', size)
+    set({ fontSize: size })
   },
   testConnection: async () => {
     try {
