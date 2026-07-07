@@ -24,6 +24,13 @@
   --accent-pink: #d06090;
   --glow-gold: 0 0 20px rgba(200, 164, 94, 0.15);
   --glow-cyan: 0 0 20px rgba(94, 196, 212, 0.1);
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-md: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.125rem;
+  --font-size-base: 0.875rem;
 }
 
 [data-theme="light"] {
@@ -60,7 +67,7 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--font-size-base);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
