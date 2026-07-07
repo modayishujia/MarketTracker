@@ -7,8 +7,8 @@ import { FeedForm } from '../components/FeedForm'
 export function SettingsPage() {
   const { t, i18n } = useTranslation()
   const {
-    llmConfig, fetchInterval, autoAnalyze,
-    loadSettings, saveLLMConfig, saveFetchInterval, saveAutoAnalyze, saveLanguage, testConnection
+    llmConfig, fetchInterval, autoAnalyze, fontSize,
+    loadSettings, saveLLMConfig, saveFetchInterval, saveAutoAnalyze, saveLanguage, saveFontSize, testConnection
   } = useSettingsStore()
   const { feeds, loading: feedsLoading, loadFeeds, addFeed, deleteFeed, fetchFeed, fetchAllActive } = useFeedStore()
 
@@ -52,6 +52,10 @@ export function SettingsPage() {
   const handleLanguageChange = async (lang: string) => {
     i18n.changeLanguage(lang)
     await saveLanguage(lang)
+  }
+
+  const handleFontSizeChange = async (size: 'small' | 'medium' | 'large') => {
+    await saveFontSize(size)
   }
 
   const handleIntervalChange = async (value: string) => {
@@ -619,6 +623,60 @@ export function SettingsPage() {
           >
             English
           </button>
+        </div>
+      </div>
+
+      {/* Font Size */}
+      <div style={{ ...cardStyle, marginTop: '16px', marginBottom: '32px' }} className="animate-fadeIn">
+        <div className="flex items-center gap-3" style={{ marginBottom: '20px' }}>
+          <div style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            background: 'linear-gradient(135deg, rgba(94, 201, 138, 0.2) 0%, rgba(94, 201, 138, 0.05) 100%)',
+            border: '1px solid rgba(94, 201, 138, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <span style={{ fontSize: '16px' }}>🔤</span>
+          </div>
+          <div>
+            <h3 style={{ fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)' }}>
+              {t('settings.fontSize')}
+            </h3>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+              FONT SIZE
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          {[
+            { key: 'small', label: t('settings.fontSizeSmall'), desc: '12px' },
+            { key: 'medium', label: t('settings.fontSizeMedium'), desc: '14px' },
+            { key: 'large', label: t('settings.fontSizeLarge'), desc: '16px' }
+          ].map(option => (
+            <button
+              key={option.key}
+              onClick={() => handleFontSizeChange(option.key as any)}
+              style={{
+                padding: '10px 24px',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                background: fontSize === option.key
+                  ? 'linear-gradient(135deg, rgba(94, 201, 138, 0.2) 0%, rgba(94, 201, 138, 0.1) 100%)'
+                  : 'rgba(255, 255, 255, 0.03)',
+                border: `1px solid ${fontSize === option.key ? 'rgba(94, 201, 138, 0.3)' : 'var(--border-primary)'}`,
+                color: fontSize === option.key ? 'var(--accent-green)' : 'var(--text-secondary)'
+              }}
+            >
+              {option.label} ({option.desc})
+            </button>
+          ))}
         </div>
       </div>
     </div>
