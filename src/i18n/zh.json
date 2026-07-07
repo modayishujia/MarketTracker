@@ -122,7 +122,11 @@
     "fetching": "获取中...",
     "customPromptTitle": "自定义分析指令",
     "customPromptDesc": "设置自定义的分析指令，在详情页点击「自定义」时使用。可指导 AI 按照你的需求分析文章。",
-    "customPromptPlaceholder": "例如：分析这篇文章对相关股票的短期和长期影响，给出具体的交易建议"
+    "customPromptPlaceholder": "例如：分析这篇文章对相关股票的短期和长期影响，给出具体的交易建议",
+    "fontSize": "字体大小",
+    "fontSizeSmall": "小",
+    "fontSizeMedium": "中",
+    "fontSizeLarge": "大"
   },
   "common": {
     "loading": "加载中...",

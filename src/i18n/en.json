@@ -122,7 +122,11 @@
     "fetching": "Fetching...",
     "customPromptTitle": "Custom Analysis Prompt",
     "customPromptDesc": "Set a custom prompt used when clicking 'Custom' in article detail. Guides AI to analyze articles according to your needs.",
-    "customPromptPlaceholder": "e.g., Analyze the short-term and long-term impact on related stocks, give specific trading advice"
+    "customPromptPlaceholder": "e.g., Analyze the short-term and long-term impact on related stocks, give specific trading advice",
+    "fontSize": "Font Size",
+    "fontSizeSmall": "Small",
+    "fontSizeMedium": "Medium",
+    "fontSizeLarge": "Large"
   },
   "common": {
     "loading": "Loading...",
