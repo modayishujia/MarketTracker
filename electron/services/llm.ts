@@ -328,3 +328,73 @@ Be specific, cite actual data points. Avoid vague generalizations. Think like a 
   const jsonMatch = raw.match(/\{[\s\S]*\}/)
   return jsonMatch ? jsonMatch[0] : raw
 }
+
+export async function generateBriefingReport(
+  config: LLMConfig,
+  data: {
+    total: number; bullish: number; bearish: number; neutral: number
+    assets: { asset: string; bullish: number; bearish: number; neutral: number; count: number }[]
+    signals: { company: string; ticker: string | null; grade: string; score: number; reasoning: string }[]
+    recentArticles: { title: string; title_zh: string | null; sentiment: string | null; summary: string | null; published_at: string | null }[]
+    webData: { topic: string; items: string[] }[]
+  }
+): Promise<{ title: string; summary: string; html: string }> {
+  const lang = getLanguage()
+
+  const dataBlock = `
+## Market Sentiment (${data.total} articles analyzed)
+Bullish: ${data.bullish} | Bearish: ${data.bearish} | Neutral: ${data.neutral}
+
+## Top Assets
+${data.assets.slice(0, 15).map(a => `- ${a.asset}: ${a.count} mentions (B:${a.bullish}/Be:${a.bearish}/N:${a.neutral})`).join('\n')}
+
+## Active Trading Signals
+${data.signals.length > 0 ? data.signals.map(s => `- ${s.company}${s.ticker ? '(' + s.ticker + ')' : ''} [${s.grade}] score:${s.score.toFixed(1)} — ${s.reasoning}`).join('\n') : 'No active signals'}
+
+## Recent Headlines
+${data.recentArticles.slice(0, 20).map(a => `- [${a.sentiment || '?'}] ${a.title_zh || a.title}${a.summary ? ' — ' + a.summary.substring(0, 80) : ''}`).join('\n')}
+
+## Web Intelligence
+${data.webData.map(w => `### ${w.topic}\n${w.items.map(i => '- ' + i).join('\n')}`).join('\n\n')}`
+
+  const systemPrompt = `You are a senior market analyst creating a professional daily briefing report.
+
+Generate a COMPLETE, self-contained HTML document (with embedded CSS) that is:
+- Professional financial terminal aesthetic (dark theme, light text)
+- Information-dense with clear sections
+- Uses CSS grids, flexbox, gradients, progress bars for visual appeal
+- Color coding: green for bullish, red for bearish, gold for neutral
+- Width: 100%, max-width 900px, centered
+- Includes generation timestamp
+
+Structure the report with these sections:
+1. Executive Summary (3-4 sentences)
+2. Market Sentiment Overview (gauge + distribution)
+3. Key Themes (bullet points)
+4. Top Assets Analysis (table with sentiment indicators)
+5. Trading Signals (if any)
+6. Hot Topics from Web Intelligence
+7. Risk Assessment
+8. Trading Implications / Action Items
+
+Return a JSON object with exactly these fields:
+- title: a descriptive report title (string)
+- summary: 2-3 sentence executive summary (string)
+- html: the complete HTML document as a string
+
+${lang === 'zh' ? '请用中文回复。标题和摘要用中文。HTML报告内容全部使用中文。' : 'Reply in English.'}`
+
+  const raw = await callLLM(config, systemPrompt, dataBlock)
+  const parsed = JSON.parse(raw)
+
+  // Extract HTML if wrapped in markdown
+  let html = parsed.html || raw
+  const htmlMatch = html.match(/<!DOCTYPE[\s\S]*<\/html>/i)
+  if (htmlMatch) html = htmlMatch[0]
+
+  return {
+    title: parsed.title || 'Market Briefing',
+    summary: parsed.summary || '',
+    html
+  }
+}

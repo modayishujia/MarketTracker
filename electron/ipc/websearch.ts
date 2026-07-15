@@ -38,7 +38,7 @@ async function searchWeb(query: string, numResults: number = 5): Promise<WebSear
   }
 }
 
-async function fetchMarketHeadlines(): Promise<{ topic: string; items: string[] }[]> {
+export async function fetchMarketHeadlines(): Promise<{ topic: string; items: string[] }[]> {
   const queries = [
     { topic: 'stock market today', query: 'stock market news today major movers' },
     { topic: 'crypto market', query: 'cryptocurrency market news bitcoin ethereum today' },

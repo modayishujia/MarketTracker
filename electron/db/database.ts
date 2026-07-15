@@ -177,6 +177,19 @@ function initializeDatabase(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_signals_company_id ON signals(company_id);
     CREATE INDEX IF NOT EXISTS idx_signals_grade ON signals(grade);
     CREATE INDEX IF NOT EXISTS idx_signals_created_at ON signals(created_at);
+
+    CREATE TABLE IF NOT EXISTS briefings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      briefing_type TEXT NOT NULL DEFAULT 'daily',
+      content_html TEXT NOT NULL,
+      summary TEXT,
+      articles_count INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_briefings_created_at ON briefings(created_at);
+    CREATE INDEX IF NOT EXISTS idx_briefings_type ON briefings(briefing_type);
   `)
 }
 
@@ -194,6 +207,10 @@ function migrateDatabase(db: Database.Database): void {
   if (!tableNames.has('companies')) {
     initializeDatabase(db)
     console.log('Migrated: added companies/products/article_products/signals tables')
+  }
+  if (!tableNames.has('briefings')) {
+    initializeDatabase(db)
+    console.log('Migrated: added briefings table')
   }
 }
 

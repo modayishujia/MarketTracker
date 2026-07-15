@@ -131,6 +131,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     query: (q: string, n?: number) => ipcRenderer.invoke('websearch:query', q, n)
   },
 
+  briefings: {
+    generate: () => ipcRenderer.invoke('briefings:generate'),
+    list: (limit?: number) => ipcRenderer.invoke('briefings:list', limit),
+    get: (id: number) => ipcRenderer.invoke('briefings:get', id),
+    delete: (id: number) => ipcRenderer.invoke('briefings:delete', id)
+  },
+
   update: {
     check: () => ipcRenderer.invoke('update:check'),
     download: () => ipcRenderer.invoke('update:download'),
@@ -161,5 +168,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   onAnalysisStarted: (callback: (data: { count: number }) => void) => {
     ipcRenderer.on('analysis:started', (_event, data) => callback(data))
+  },
+
+  onBriefingProgress: (callback: (data: { stage: string }) => void) => {
+    ipcRenderer.on('briefing:progress', (_event, data) => callback(data))
   }
 })

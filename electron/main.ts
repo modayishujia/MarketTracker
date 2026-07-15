@@ -9,6 +9,7 @@ import { registerLLMHandlers } from './ipc/llm'
 import { registerServiceHandlers } from './ipc/service'
 import { registerOpportunityHandlers } from './ipc/opportunities'
 import { registerWebSearchHandlers } from './ipc/websearch'
+import { registerBriefingHandlers } from './ipc/briefings'
 import { registerBatchAnalysisHandlers } from './services/batchAnalysis'
 import { startScheduler, restartScheduler, fetchAllFeeds } from './services/scheduler'
 import { setupAutoUpdater } from './services/updater'
@@ -49,6 +50,7 @@ app.whenReady().then(async () => {
   registerServiceHandlers()
   registerOpportunityHandlers()
   registerWebSearchHandlers()
+  registerBriefingHandlers()
   registerBatchAnalysisHandlers()
 
   createWindow()
