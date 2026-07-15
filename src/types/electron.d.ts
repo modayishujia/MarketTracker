@@ -1,4 +1,4 @@
-import type { Feed, Article, Analysis, Note, Setting, AnalysisResult, ReportResult } from './types'
+import type { Feed, Article, Analysis, Note, Setting, AnalysisResult, ReportResult, Company, Product, Signal } from './types'
 
 interface ElectronAPI {
   platform: string
@@ -48,8 +48,44 @@ interface ElectronAPI {
     testConnection: () => Promise<boolean>
   }
 
+  companies: {
+    getAll: () => Promise<Company[]>
+    getById: (id: number) => Promise<Company | undefined>
+    add: (name: string, ticker?: string, sector?: string, description?: string) => Promise<Company>
+    update: (id: number, name: string, ticker?: string, sector?: string, description?: string) => Promise<void>
+    delete: (id: number) => Promise<void>
+  }
+
+  products: {
+    getAll: () => Promise<Product[]>
+    getByCompany: (companyId: number) => Promise<Product[]>
+    add: (companyId: number, name: string, category?: string, description?: string, keywords?: string) => Promise<Product>
+    update: (id: number, name: string, category?: string, description?: string, keywords?: string) => Promise<void>
+    delete: (id: number) => Promise<void>
+  }
+
+  signals: {
+    getActive: (limit?: number) => Promise<Signal[]>
+    add: (companyId: number, signalType: string, grade: string, score: number, reasoning: string, evidence: string) => Promise<Signal>
+    dismiss: (id: number) => Promise<void>
+    getCount: () => Promise<{ active: number; dismissed: number }>
+    scan: () => Promise<{ ok: boolean; scanned: number; signals: number }>
+    getDetail: (signalId: number) => Promise<Signal & { company_name: string; ticker: string | null; sector: string | null }>
+    getCompanyArticles: (companyId: number, limit?: number) => Promise<{ id: number; title: string; title_zh: string | null; url: string; published_at: string | null; sentiment: string | null; confidence: number | null; summary: string | null }[]>
+    getCompanyProducts: (companyId: number) => Promise<Product[]>
+  }
+
+  opportunities: {
+    getProductsByArticle: (articleId: number) => Promise<(Product & { relevance_score: number })[]>
+    linkArticleProduct: (articleId: number, productId: number, relevanceScore?: number) => Promise<void>
+  }
+
   scheduler: {
     restart: () => void
+  }
+
+  mcp: {
+    getCommand: () => Promise<{ command: string; args: string[] }>
   }
 
   onNewArticles: (callback: (count: number) => void) => void

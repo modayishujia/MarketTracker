@@ -3,6 +3,7 @@ import { analyzeArticle } from './llm'
 import { getSetting } from '../db/settings'
 import { getArticlesWithoutAnalysis } from '../db/articles'
 import { addAnalysis } from '../db/analyses'
+import { runSignalScan } from './signal-engine'
 import type { LLMConfig } from '../../src/types'
 
 let isAnalyzing = false
@@ -86,6 +87,17 @@ async function runBatchAnalysis() {
 
   isAnalyzing = false
   notifyRenderer('analysis:completed', { processed, success })
+
+  // Auto-trigger signal scan after batch analysis
+  try {
+    const scanResult = runSignalScan()
+    if (scanResult.signals > 0) {
+      console.log(`[SignalEngine] Auto-scan: ${scanResult.signals} new signals from ${scanResult.scanned} articles`)
+      notifyRenderer('signals:generated', { count: scanResult.signals })
+    }
+  } catch (err: any) {
+    console.error('[SignalEngine] Auto-scan error:', err.message)
+  }
 }
 
 export function startBatchAnalysis(articleIds: number[]) {

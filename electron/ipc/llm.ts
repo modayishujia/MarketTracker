@@ -3,6 +3,7 @@ import { analyzeArticle, analyzeSentiment, generateReport, testLLMConnection, fe
 import { getSetting } from '../db/settings'
 import { getArticleById } from '../db/articles'
 import { addAnalysis, getAnalysesByType } from '../db/analyses'
+import { processArticleForSignals, runSignalScan } from '../services/signal-engine'
 import type { LLMConfig } from '../../src/types'
 
 function getLLMConfig(): LLMConfig {
@@ -44,7 +45,12 @@ export function registerLLMHandlers() {
       } catch (e) {
         // Ignore save errors
       }
-      
+
+      // Trigger signal detection
+      try {
+        processArticleForSignals(articleId, article.title, article.content || '', JSON.stringify(result))
+      } catch {}
+
       return result
     } catch (err: any) {
       console.error('LLM analyze error:', err.message)
@@ -187,6 +193,15 @@ export function registerLLMHandlers() {
       return { html }
     } catch (err: any) {
       return { error: err.message || '报告生成失败' }
+    }
+  })
+
+  ipcMain.handle('signals:scan', async () => {
+    try {
+      const result = runSignalScan()
+      return { ok: true, ...result }
+    } catch (err: any) {
+      return { error: err.message || '扫描失败' }
     }
   })
 }

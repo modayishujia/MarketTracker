@@ -65,13 +65,64 @@ contextBridge.exposeInMainWorld('electronAPI', {
     generatePulseReport: (limit?: number) => ipcRenderer.invoke('llm:generatePulseReport', limit)
   },
 
+  service: {
+    isReady: () => ipcRenderer.invoke('service:isReady'),
+    fetchFeed: (url: string) => ipcRenderer.invoke('service:fetchFeed', url),
+    analyzeArticle: (title: string, content: string) => ipcRenderer.invoke('service:analyzeArticle', title, content),
+    batchAnalyze: (articles: { title: string; content: string }[]) =>
+      ipcRenderer.invoke('service:batchAnalyze', articles),
+    updateConfig: () => ipcRenderer.invoke('service:updateConfig')
+  },
+
   batchAnalysis: {
     start: (articleIds: number[]) => ipcRenderer.invoke('analysis:startBatch', articleIds),
     status: () => ipcRenderer.invoke('analysis:status')
   },
 
+  companies: {
+    getAll: () => ipcRenderer.invoke('companies:getAll'),
+    getById: (id: number) => ipcRenderer.invoke('companies:getById', id),
+    add: (name: string, ticker?: string, sector?: string, description?: string) =>
+      ipcRenderer.invoke('companies:add', name, ticker, sector, description),
+    update: (id: number, name: string, ticker?: string, sector?: string, description?: string) =>
+      ipcRenderer.invoke('companies:update', id, name, ticker, sector, description),
+    delete: (id: number) => ipcRenderer.invoke('companies:delete', id)
+  },
+
+  products: {
+    getAll: () => ipcRenderer.invoke('products:getAll'),
+    getByCompany: (companyId: number) => ipcRenderer.invoke('products:getByCompany', companyId),
+    add: (companyId: number, name: string, category?: string, description?: string, keywords?: string) =>
+      ipcRenderer.invoke('products:add', companyId, name, category, description, keywords),
+    update: (id: number, name: string, category?: string, description?: string, keywords?: string) =>
+      ipcRenderer.invoke('products:update', id, name, category, description, keywords),
+    delete: (id: number) => ipcRenderer.invoke('products:delete', id)
+  },
+
+  signals: {
+    getActive: (limit?: number) => ipcRenderer.invoke('signals:getActive', limit),
+    add: (companyId: number, signalType: string, grade: string, score: number, reasoning: string, evidence: string) =>
+      ipcRenderer.invoke('signals:add', companyId, signalType, grade, score, reasoning, evidence),
+    dismiss: (id: number) => ipcRenderer.invoke('signals:dismiss', id),
+    getCount: () => ipcRenderer.invoke('signals:getCount'),
+    scan: () => ipcRenderer.invoke('signals:scan'),
+    getDetail: (signalId: number) => ipcRenderer.invoke('signals:getDetail', signalId),
+    getCompanyArticles: (companyId: number, limit?: number) => ipcRenderer.invoke('signals:getCompanyArticles', companyId, limit),
+    getCompanyProducts: (companyId: number) => ipcRenderer.invoke('signals:getCompanyProducts', companyId)
+  },
+
+  opportunities: {
+    getProductsByArticle: (articleId: number) => ipcRenderer.invoke('opportunities:getProductsByArticle', articleId),
+    linkArticleProduct: (articleId: number, productId: number, relevanceScore?: number) =>
+      ipcRenderer.invoke('opportunities:linkArticleProduct', articleId, productId, relevanceScore)
+  },
+
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url)
+  },
+
+  mcp: {
+    getCommand: () => ipcRenderer.invoke('mcp:getCommand')
   },
 
   update: {

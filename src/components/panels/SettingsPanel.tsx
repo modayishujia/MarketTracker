@@ -24,8 +24,9 @@ export function SettingsPanel({ onClose }: Props) {
   const [testResult, setTestResult] = useState<{ ok: boolean; error?: string } | null>(null)
   const [saving, setSaving] = useState(false)
   const [showFeedForm, setShowFeedForm] = useState(false)
-  const [activeTab, setActiveTab] = useState<'llm' | 'feeds' | 'general' | 'prompt'>('llm')
+  const [activeTab, setActiveTab] = useState<'llm' | 'feeds' | 'general' | 'prompt' | 'mcp'>('llm')
   const [customPrompt, setCustomPrompt] = useState('')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     loadFeeds()
@@ -70,6 +71,7 @@ export function SettingsPanel({ onClose }: Props) {
     { key: 'llm' as const, icon: '🤖', label: t('settings.tabAI') },
     { key: 'feeds' as const, icon: '📡', label: t('settings.tabFeeds') },
     { key: 'prompt' as const, icon: '✏️', label: t('settings.tabPrompt') },
+    { key: 'mcp' as const, icon: '🔗', label: 'MCP' },
     { key: 'general' as const, icon: '⚙️', label: t('settings.tabGeneral') }
   ]
 
@@ -339,6 +341,101 @@ export function SettingsPanel({ onClose }: Props) {
                 }} />
               </div>
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t('settings.autoAnalyze')}</span>
+            </div>
+          </div>
+        )}
+
+        {/* MCP Tab */}
+        {activeTab === 'mcp' && (
+          <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', overflow: 'auto', flex: 1 }}>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                MCP Server
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '16px' }}>
+                {i18n.language === 'zh'
+                  ? 'MarketTracker 提供本地 MCP 服务，可被 OpenClaw、Claude Desktop、Cursor 等 AI 客户端连接，直接查询市场数据和分析结果。'
+                  : 'MarketTracker provides a local MCP server that AI clients like OpenClaw, Claude Desktop, and Cursor can connect to for querying market data and analysis results.'}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                {i18n.language === 'zh' ? '连接地址' : 'Endpoint'}
+              </div>
+              <div style={{
+                padding: '12px', background: 'var(--bg-primary)', border: '1px solid var(--border-primary)',
+                borderRadius: '6px', fontFamily: 'JetBrains Mono, monospace', fontSize: '12px',
+                color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+              }}>
+                <span>http://localhost:19877</span>
+                <button onClick={() => {
+                  navigator.clipboard.writeText('http://localhost:19877')
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }} style={{
+                  padding: '4px 10px', background: copied ? '#22c55e22' : 'var(--surface)',
+                  border: `1px solid ${copied ? '#22c55e' : 'var(--border)'}`,
+                  borderRadius: '4px', color: copied ? '#22c55e' : 'var(--text-muted)', fontSize: '10px', cursor: 'pointer'
+                }}>{copied ? '✓' : 'Copy'}</button>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                {i18n.language === 'zh' ? '客户端配置' : 'Client Config'}
+              </div>
+              <div style={{
+                padding: '12px', background: 'var(--bg-primary)', border: '1px solid var(--border-primary)',
+                borderRadius: '6px', fontFamily: 'JetBrains Mono, monospace', fontSize: '11px',
+                color: 'var(--text-secondary)', lineHeight: '1.6', position: 'relative'
+              }}>
+                <div style={{ color: 'var(--accent-gold)' }}>{`"mcpServers": {`}</div>
+                <div style={{ paddingLeft: '16px', color: 'var(--accent-gold)' }}>{`"markettracker": {`}</div>
+                <div style={{ paddingLeft: '32px' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>"url"</span>: <span style={{ color: '#22c55e' }}>"http://localhost:19877"</span>
+                </div>
+                <div style={{ paddingLeft: '16px', color: 'var(--accent-gold)' }}>{`}`}</div>
+                <div style={{ color: 'var(--accent-gold)' }}>{`}`}</div>
+                <button onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify({ mcpServers: { markettracker: { url: 'http://localhost:19877' } } }, null, 2))
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }} style={{
+                  position: 'absolute', top: '8px', right: '8px', padding: '4px 10px',
+                  background: copied ? '#22c55e22' : 'var(--surface)', border: `1px solid ${copied ? '#22c55e' : 'var(--border)'}`,
+                  borderRadius: '4px', color: copied ? '#22c55e' : 'var(--text-muted)', fontSize: '10px', cursor: 'pointer'
+                }}>{copied ? '✓' : 'Copy'}</button>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                {i18n.language === 'zh' ? '可用工具' : 'Available Tools'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {[
+                  { name: 'list_articles', desc: i18n.language === 'zh' ? '查询文章列表（支持筛选）' : 'List articles with filters' },
+                  { name: 'get_article', desc: i18n.language === 'zh' ? '获取文章详情和 AI 分析' : 'Get article detail + AI analysis' },
+                  { name: 'search_articles', desc: i18n.language === 'zh' ? '全文搜索文章' : 'Full-text search articles' },
+                  { name: 'get_analyses', desc: i18n.language === 'zh' ? '获取 AI 分析结果' : 'Get AI analysis results' },
+                  { name: 'get_market_pulse', desc: i18n.language === 'zh' ? '市场情绪概览' : 'Market sentiment overview' },
+                  { name: 'list_signals', desc: i18n.language === 'zh' ? '交易信号列表' : 'Trading signals list' },
+                  { name: 'get_company_detail', desc: i18n.language === 'zh' ? '公司详情（产品+信号+文章）' : 'Company detail (products+signals+articles)' },
+                  { name: 'list_companies', desc: i18n.language === 'zh' ? '已追踪公司列表' : 'Tracked companies list' },
+                  { name: 'list_feeds', desc: i18n.language === 'zh' ? '已订阅 RSS 源' : 'Subscribed RSS feeds' },
+                  { name: 'list_feed_sources', desc: i18n.language === 'zh' ? '可订阅的 RSS 源' : 'Available RSS sources' },
+                  { name: 'get_stats', desc: i18n.language === 'zh' ? '系统统计概览' : 'System statistics overview' },
+                ].map(tool => (
+                  <div key={tool.name} style={{
+                    padding: '6px 10px', background: 'var(--bg-primary)', border: '1px solid var(--border-primary)',
+                    borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px'
+                  }}>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '11px', color: 'var(--accent-gold)', minWidth: '160px' }}>{tool.name}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{tool.desc}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

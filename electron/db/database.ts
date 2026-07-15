@@ -26,6 +26,17 @@ const DEFAULT_FEEDS = [
   { title: 'Wall Street Journal', url: 'https://feeds.a.dj.com/rss/RSSMarketsMain.xml', source_type: 'rss' },
   { title: 'CoinDesk', url: 'https://www.coindesk.com/arc/outboundfeeds/rss/', source_type: 'rss' },
   { title: 'CoinTelegraph', url: 'https://cointelegraph.com/rss', source_type: 'rss' },
+  { title: 'Seeking Alpha', url: 'https://seekingalpha.com/market_currents.xml', source_type: 'rss' },
+  { title: 'MarketWatch', url: 'https://feeds.marketwatch.com/marketwatch/topstories/', source_type: 'rss' },
+  { title: 'Yahoo Finance', url: 'https://finance.yahoo.com/news/rssindex', source_type: 'rss' },
+  { title: 'CNBC', url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114', source_type: 'rss' },
+  { title: 'Investing.com News', url: 'https://www.investing.com/rss/news.rss', source_type: 'rss' },
+  
+  // 产品评测 & 消费科技
+  { title: 'MacRumors', url: 'https://feeds.macrumors.com/MacRumors-All', source_type: 'rss' },
+  { title: '9to5Mac', url: 'https://9to5mac.com/feed/', source_type: 'rss' },
+  { title: 'Electrek', url: 'https://electrek.co/feed/', source_type: 'rss' },
+  { title: 'The Information', url: 'https://www.theinformation.com/feed', source_type: 'rss' },
   
   // 开发者 & 编程
   { title: 'GitHub Blog', url: 'https://github.blog/feed/', source_type: 'rss' },
@@ -43,6 +54,11 @@ const DEFAULT_FEEDS = [
   { title: '少数派', url: 'https://sspai.com/feed', source_type: 'rss' },
   { title: 'InfoQ 中文', url: 'https://www.infoq.cn/feed', source_type: 'rss' },
   { title: '机器之心', url: 'https://www.jiqizhixin.com/rss', source_type: 'rss' },
+  
+  // 中国财经
+  { title: '华尔街见闻', url: 'https://wallstreetcn.com/rss', source_type: 'rss' },
+  { title: '财新网', url: 'https://rsshub.app/caixin/latest', source_type: 'rss' },
+  { title: '第一财经', url: 'https://rsshub.app/yicai/brief', source_type: 'rss' },
 ]
 
 export function getDatabase(): Database.Database {
@@ -114,6 +130,53 @@ function initializeDatabase(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_analyses_article_id ON analyses(article_id);
     CREATE INDEX IF NOT EXISTS idx_analyses_analysis_type ON analyses(analysis_type);
     CREATE INDEX IF NOT EXISTS idx_notes_article_id ON notes(article_id);
+
+    CREATE TABLE IF NOT EXISTS companies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      ticker TEXT,
+      sector TEXT,
+      description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      category TEXT,
+      description TEXT,
+      keywords TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS article_products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      relevance_score REAL DEFAULT 0.5,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(article_id, product_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS signals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      signal_type TEXT NOT NULL,
+      grade TEXT NOT NULL,
+      score REAL NOT NULL,
+      reasoning TEXT NOT NULL,
+      evidence TEXT NOT NULL,
+      status TEXT DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_products_company_id ON products(company_id);
+    CREATE INDEX IF NOT EXISTS idx_article_products_article_id ON article_products(article_id);
+    CREATE INDEX IF NOT EXISTS idx_article_products_product_id ON article_products(product_id);
+    CREATE INDEX IF NOT EXISTS idx_signals_company_id ON signals(company_id);
+    CREATE INDEX IF NOT EXISTS idx_signals_grade ON signals(grade);
+    CREATE INDEX IF NOT EXISTS idx_signals_created_at ON signals(created_at);
   `)
 }
 
@@ -123,6 +186,14 @@ function migrateDatabase(db: Database.Database): void {
   if (!hasTitleZh) {
     db.exec('ALTER TABLE articles ADD COLUMN title_zh TEXT')
     console.log('Migrated: added title_zh column to articles')
+  }
+
+  // Ensure new tables exist (for existing DBs)
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[]
+  const tableNames = new Set(tables.map(t => t.name))
+  if (!tableNames.has('companies')) {
+    initializeDatabase(db)
+    console.log('Migrated: added companies/products/article_products/signals tables')
   }
 }
 

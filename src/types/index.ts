@@ -63,3 +63,52 @@ export interface ReportResult {
   marketOutlook: string
   articlesAnalyzed: number
 }
+
+export interface ServiceStatus {
+  isReady: boolean
+  port: number
+}
+
+export interface BatchAnalyzeRequest {
+  title: string
+  content: string
+}
+
+export interface BatchAnalyzeResponse {
+  results: AnalysisResult[]
+}
+
+export interface Company {
+  id: number
+  name: string
+  ticker: string | null
+  sector: string | null
+  description: string | null
+  created_at: string
+}
+
+export interface Product {
+  id: number
+  company_id: number
+  name: string
+  category: string | null
+  description: string | null
+  keywords: string | null
+  created_at: string
+  company_name?: string
+  ticker?: string | null
+}
+
+export interface Signal {
+  id: number
+  company_id: number
+  signal_type: string
+  grade: string
+  score: number
+  reasoning: string
+  evidence: string
+  status: string
+  created_at: string
+  company_name?: string
+  ticker?: string | null
+}

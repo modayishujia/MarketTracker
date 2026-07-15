@@ -1,21 +1,23 @@
 {
   "name": "markettracker",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "AI-Powered Market Analysis Terminal",
   "main": "dist-electron/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "dev": "npm run build:service && electron-vite dev",
+    "build": "electron-vite build && node scripts/build-service.js",
+    "build:service": "node scripts/build-service.js",
     "preview": "electron-vite preview",
     "lint": "eslint src electron --ext .ts,.tsx",
-    "build:mac": "electron-vite build && electron-builder --mac --publish never",
-    "build:win": "electron-vite build && electron-builder --win --publish never",
-    "build:linux": "electron-vite build && electron-builder --linux --publish never"
+    "build:mac": "npm run build && electron-builder --mac --publish never",
+    "build:win": "npm run build && electron-builder --win --publish never",
+    "build:linux": "npm run build && electron-builder --linux --publish never"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^12.11.1",
     "electron-updater": "^6.8.9",
     "i18next": "^26.3.4",
@@ -42,6 +44,7 @@
     "electron": "^43.0.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
+    "esbuild": "^0.28.1",
     "eslint": "^10.6.0",
     "postcss": "^8.5.16",
     "tailwindcss": "^4.3.2",
