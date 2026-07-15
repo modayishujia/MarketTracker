@@ -279,3 +279,52 @@ export async function testLLMConnection(config: LLMConfig): Promise<{ ok: boolea
     return { ok: false, error: err.message || 'Unknown error' }
   }
 }
+
+export async function generateMarketIntelligence(
+  config: LLMConfig,
+  localData: {
+    total: number; bullish: number; bearish: number; neutral: number
+    assets: { asset: string; bullish: number; bearish: number; neutral: number; avgConfidence: number }[]
+    signals: { company: string; ticker: string | null; grade: string; score: number; reasoning: string }[]
+    recentArticles: { title: string; sentiment: string | null; summary: string | null }[]
+  },
+  webData: { topic: string; items: string[] }[]
+): Promise<string> {
+  const lang = getLanguage()
+
+  const localSection = `
+## LOCAL SENTIMENT DATA (from ${localData.total} analyzed articles)
+Overall: Bullish ${localData.bullish} / Bearish ${localData.bearish} / Neutral ${localData.neutral}
+Top Assets: ${localData.assets.slice(0, 10).map(a => `${a.asset}(${a.bullish}B/${a.bearish}Bear/${a.neutral}N, conf:${Math.round(a.avgConfidence * 100)}%)`).join(', ')}
+Active Signals: ${localData.signals.map(s => `${s.company}${s.ticker ? '(' + s.ticker + ')' : ''} [${s.grade}] ${s.score.toFixed(1)} - ${s.reasoning}`).join('\n  ')}
+Recent Headlines: ${localData.recentArticles.slice(0, 15).map(a => `[${a.sentiment || '?'}] ${a.title}`).join('\n  ')}`
+
+  const webSection = `
+## REAL-TIME WEB INTELLIGENCE
+${webData.map(w => `### ${w.topic}\n${w.items.map(i => '- ' + i).join('\n')}`).join('\n\n')}`
+
+  const systemPrompt = `You are a senior portfolio strategist creating a comprehensive market intelligence briefing for a professional investor.
+
+Combine the LOCAL sentiment data (from the investor's own RSS feeds and AI analysis) with the REAL-TIME web intelligence to produce a HIGH-VALUE market brief.
+
+Structure your analysis as a JSON object with exactly these fields:
+- executiveSummary: 3-4 sentence overview of current market conditions (string)
+- keyThemes: array of 4-6 dominant market themes right now (array of strings)
+- sentimentAssessment: { overall: "bullish"|"bearish"|"neutral", strength: "strong"|"moderate"|"weak", reasoning: string }
+- hotTopics: array of { topic: string, impact: "positive"|"negative"|"neutral", relevance: string } — the most important things happening NOW
+- sectorRotation: { inflow: array of sectors money is flowing INTO, outflow: array of sectors money is flowing OUT OF, reasoning: string }
+- riskEvents: array of { event: string, impact: "high"|"medium"|"low", timeframe: string } — upcoming catalysts
+- contrarianSignals: array of { signal: string, direction: "long"|"short", conviction: "high"|"medium"|"low" } — when local sentiment diverges from web consensus
+- tradingImplications: array of { action: "buy"|"sell"|"hold"|"watch", target: string, reasoning: string } — specific actionable ideas
+- riskWarning: the #1 risk to watch right now (string)
+
+${lang === 'zh' ? '请用中文回复。所有字段内容必须使用中文。' : 'Reply in English.'}
+
+Be specific, cite actual data points. Avoid vague generalizations. Think like a PM who needs to make decisions TODAY.`
+
+  const raw = await callLLM(config, systemPrompt, localSection + '\n\n' + webSection)
+
+  // Try to extract JSON from response
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  return jsonMatch ? jsonMatch[0] : raw
+}

@@ -62,7 +62,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     fetchContent: (url: string) => ipcRenderer.invoke('llm:fetchContent', url),
     summarize: (title: string, content: string) => ipcRenderer.invoke('llm:summarize', title, content),
     customAnalyze: (articleId: number, prompt: string) => ipcRenderer.invoke('llm:customAnalyze', articleId, prompt),
-    generatePulseReport: (limit?: number) => ipcRenderer.invoke('llm:generatePulseReport', limit)
+    generatePulseReport: (limit?: number) => ipcRenderer.invoke('llm:generatePulseReport', limit),
+    marketIntelligence: (webData: { topic: string; items: string[] }[]) => ipcRenderer.invoke('llm:marketIntelligence', webData)
   },
 
   service: {
@@ -123,6 +124,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   mcp: {
     getCommand: () => ipcRenderer.invoke('mcp:getCommand')
+  },
+
+  websearch: {
+    market: () => ipcRenderer.invoke('websearch:market'),
+    query: (q: string, n?: number) => ipcRenderer.invoke('websearch:query', q, n)
   },
 
   update: {

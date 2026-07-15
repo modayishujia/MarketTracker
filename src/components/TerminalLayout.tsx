@@ -13,6 +13,10 @@ export function TerminalLayout() {
   const { t, i18n } = useTranslation()
   const { language, theme, autoAnalyze, fontSize, saveLanguage, saveTheme, saveAutoAnalyze } = useSettingsStore()
   const [activePanel, setActivePanel] = useState<Panel>('feed')
+  const [updateInfo, setUpdateInfo] = useState<{ version: string } | null>(null)
+  const [updateDownloading, setUpdateDownloading] = useState(false)
+  const [updateDownloaded, setUpdateDownloaded] = useState(false)
+  const [updateProgress, setUpdateProgress] = useState(0)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [articleCount, setArticleCount] = useState(0)
   const [analysisCount, setAnalysisCount] = useState(0)
@@ -24,6 +28,25 @@ export function TerminalLayout() {
 
   useEffect(() => {
     loadStats()
+  }, [])
+
+  useEffect(() => {
+    const api = (window as any).electronAPI
+    if (!api?.update) return
+
+    api.update.onAvailable((info: any) => {
+      setUpdateInfo(info)
+    })
+    api.update.onProgress((p: any) => {
+      setUpdateProgress(Math.round(p.percent || 0))
+    })
+    api.update.onDownloaded(() => {
+      setUpdateDownloading(false)
+      setUpdateDownloaded(true)
+    })
+    api.update.onError(() => {
+      setUpdateDownloading(false)
+    })
   }, [])
 
   useEffect(() => {
@@ -78,6 +101,63 @@ export function TerminalLayout() {
       background: 'var(--bg-primary)',
       overflow: 'hidden'
     }}>
+      {/* Update Banner */}
+      {updateInfo && (
+        <div style={{
+          height: '32px',
+          background: updateDownloaded ? '#22c55e18' : 'var(--accent-gold-dim)',
+          borderBottom: `1px solid ${updateDownloaded ? '#22c55e44' : 'var(--border-accent)'}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          flexShrink: 0,
+          fontSize: '11px',
+          fontFamily: 'JetBrains Mono, monospace'
+        }}>
+          {updateDownloaded ? (
+            <>
+              <span style={{ color: '#22c55e' }}>
+                {i18n.language === 'zh' ? `v${updateInfo.version} 已下载，重启后生效` : `v${updateInfo.version} downloaded, restart to apply`}
+              </span>
+              <button onClick={() => (window as any).electronAPI.update.install()} style={{
+                padding: '2px 10px', background: '#22c55e22', border: '1px solid #22c55e66',
+                borderRadius: '3px', color: '#22c55e', fontSize: '10px', cursor: 'pointer'
+              }}>{i18n.language === 'zh' ? '立即重启' : 'Restart Now'}</button>
+              <button onClick={() => setUpdateInfo(null)} style={{
+                padding: '2px 6px', background: 'transparent', border: 'none',
+                color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer'
+              }}>x</button>
+            </>
+          ) : updateDownloading ? (
+            <>
+              <span style={{ color: 'var(--accent-gold)' }}>
+                {i18n.language === 'zh' ? '下载中...' : 'Downloading...'} {updateProgress}%
+              </span>
+              <div style={{ width: '120px', height: '4px', background: 'var(--border)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${updateProgress}%`, background: 'var(--accent-gold)', borderRadius: '2px', transition: 'width 0.3s' }} />
+              </div>
+            </>
+          ) : (
+            <>
+              <span style={{ color: 'var(--accent-gold)' }}>
+                {i18n.language === 'zh' ? `发现新版本 v${updateInfo.version}` : `New version v${updateInfo.version} available`}
+              </span>
+              <button onClick={async () => {
+                setUpdateDownloading(true)
+                await (window as any).electronAPI.update.download()
+              }} style={{
+                padding: '2px 10px', background: 'var(--accent-gold-dim)', border: '1px solid var(--border-accent)',
+                borderRadius: '3px', color: 'var(--accent-gold)', fontSize: '10px', cursor: 'pointer'
+              }}>{i18n.language === 'zh' ? '下载更新' : 'Download'}</button>
+              <button onClick={() => setUpdateInfo(null)} style={{
+                padding: '2px 6px', background: 'transparent', border: 'none',
+                color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer'
+              }}>x</button>
+            </>
+          )}
+        </div>
+      )}
       {/* Top Bar */}
       <div style={{
         height: '36px',
